@@ -1,0 +1,20 @@
+# Những thứ KHÔNG được chui vào image
+
+# Secret: tuyệt đối không
+.env
+.env.*
+!.env.example
+
+# Thư mục thư viện & cache build (sẽ được tạo trong container)
+node_modules/
+.next/
+out/
+
+# Lịch sử Git: nặng và không cần để chạy
+.git
+.gitignore
+
+# Không cần để chạy app
+*.md
+Dockerfile
+.dockerignore

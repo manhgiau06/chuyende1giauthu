@@ -1,0 +1,69 @@
+# compose.yml — Hệ thống Thư Viện Tri Thức Số chạy bằng Docker: frontend + backend + db
+# Các giá trị ${...} lấy từ file .env nằm cạnh file này.
+
+name: chuyende1            # tên dự án cố định: hộp sẽ tên chuyende1-backend-1, chuyende1-frontend-1, chuyende1-db-1
+
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "3307:3306"        # Mở cổng 3307 ra máy thật để tránh đụng cổng 3306 của Wamp/WSL
+    volumes:
+      - db-data:/var/lib/mysql
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      # Hỏi qua mạng (127.0.0.1): máy chủ tạm lúc khởi tạo không mở mạng nên chưa "khoẻ"
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+
+  backend:
+    build: ./frontend-next
+    ports:
+      - "8000:8000"
+    environment:
+      PORT: "8000"
+      DB_HOST: db                 # gọi CSDL bằng TÊN dịch vụ nội bộ Docker
+      DB_PORT: "3306"
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      APP_KEY: ${APP_KEY}
+      NEXT_PUBLIC_BACKEND_URL: http://127.0.0.1:8000
+      WATCHPACK_POLLING: "true"   # hỗ trợ hot-reload mượt trên Windows Docker
+    volumes:
+      - ./frontend-next:/app
+      - backend-node-modules:/app/node_modules
+      - backend-next-cache:/app/.next
+      - uploads:/app/public/storage
+    depends_on:
+      db:
+        condition: service_healthy  # chờ CSDL sẵn sàng thật sự rồi mới chạy Backend
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_BACKEND_URL: http://127.0.0.1:8000
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - ./frontend:/app
+      - frontend-node-modules:/app/node_modules
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  uploads:
+  backend-node-modules:
+  backend-next-cache:
+  frontend-node-modules:

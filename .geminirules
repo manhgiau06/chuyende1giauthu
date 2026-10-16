@@ -1,0 +1,14 @@
+# TOKEN & CONTEXT OPTIMIZATION RULES FOR ANTIGRAVITY
+
+1. CONCISE RESPONSES:
+   - Always keep responses concise, direct, and focused on the solution. Avoid conversational fluff.
+   - For code modifications, output targeted diff chunks or replace specific lines using partial edit tools instead of full file overwrites.
+
+2. TOOL EFFICIENCY:
+   - When inspecting large files, specify line ranges (StartLine & EndLine) to read only necessary code blocks.
+   - Ignore `vendor/`, `node_modules/`, `dist/`, `storage/logs/` in general searches unless inspecting errors specifically.
+   - Truncate long command outputs or filter logs to error tracebacks only.
+
+3. WORKFLOW OPTIMIZATION:
+   - Summarize findings compactly after background tasks complete.
+   - Update existing artifacts (`walkthrough.md`, `implementation_plan.md`) without duplicating information in chat messages.
