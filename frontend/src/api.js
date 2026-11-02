@@ -1,9 +1,9 @@
 import axios from 'axios';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
 const api = axios.create({
-  baseURL: `${BACKEND_URL}/api`,
+  baseURL: BACKEND_URL ? `${BACKEND_URL}/api` : '/api',
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
@@ -22,6 +22,9 @@ export const getImageUrl = (url) => {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:') || url.startsWith('data:')) {
     return url;
+  }
+  if (!BACKEND_URL) {
+    return url.startsWith('/') ? url : `/${url}`;
   }
   return `${BACKEND_URL}${url.startsWith('/') ? '' : '/'}${url}`;
 };

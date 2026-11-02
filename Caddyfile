@@ -1,0 +1,19 @@
+# Caddy Reverse Proxy cho Cổng 80 (chuẩn Azure / Production)
+# Tự động định tuyến:
+#   /api/*     -> Backend Next.js :8000
+#   /storage/* -> Thư mục ảnh Uploads của Backend :8000
+#   /*         -> Frontend React :5173
+
+:80 {
+    handle /api/* {
+        reverse_proxy backend:8000
+    }
+
+    handle /storage/* {
+        reverse_proxy backend:8000
+    }
+
+    handle {
+        reverse_proxy frontend:5173
+    }
+}

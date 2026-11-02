@@ -1,7 +1,7 @@
-# compose.yml — Hệ thống Thư Viện Tri Thức Số chạy bằng Docker: frontend + backend + db
+# compose.yml — Hệ thống Thư Viện Tri Thức Số chạy bằng Docker: proxy + frontend + backend + db
 # Các giá trị ${...} lấy từ file .env nằm cạnh file này.
 
-name: chuyende1            # tên dự án cố định: hộp sẽ tên chuyende1-backend-1, chuyende1-frontend-1, chuyende1-db-1
+name: chuyende1            # tên dự án cố định: hộp sẽ tên chuyende1-proxy-1, chuyende1-backend-1, ...
 
 services:
   db:
@@ -12,12 +12,11 @@ services:
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "3307:3306"        # Mở cổng 3307 ra máy thật để tránh đụng cổng 3306 của Wamp/WSL
+      - "3307:3306"        # Cổng 3307 để truy cập DB nếu cần
     volumes:
       - db-data:/var/lib/mysql
       - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     healthcheck:
-      # Hỏi qua mạng (127.0.0.1): máy chủ tạm lúc khởi tạo không mở mạng nên chưa "khoẻ"
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$${MYSQL_ROOT_PASSWORD} --silent"]
       interval: 5s
       retries: 20
@@ -35,8 +34,8 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       APP_KEY: ${APP_KEY}
-      NEXT_PUBLIC_BACKEND_URL: http://127.0.0.1:8000
-      WATCHPACK_POLLING: "true"   # hỗ trợ hot-reload mượt trên Windows Docker
+      NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL:-}
+      WATCHPACK_POLLING: "true"   # hỗ trợ hot-reload mượt
     volumes:
       - ./frontend-next:/app
       - backend-node-modules:/app/node_modules
@@ -52,12 +51,26 @@ services:
     ports:
       - "5173:5173"
     environment:
-      VITE_BACKEND_URL: http://127.0.0.1:8000
+      VITE_BACKEND_URL: ${VITE_BACKEND_URL:-}
+      VITE_BACKEND_TARGET: http://backend:8000
       CHOKIDAR_USEPOLLING: "true"
     volumes:
       - ./frontend:/app
       - frontend-node-modules:/app/node_modules
     depends_on:
+      - backend
+    restart: unless-stopped
+
+  proxy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"                   # Cổng Web chuẩn trên Azure và các Cloud Server
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - frontend
       - backend
     restart: unless-stopped
 
@@ -67,3 +80,5 @@ volumes:
   backend-node-modules:
   backend-next-cache:
   frontend-node-modules:
+  caddy-data:
+  caddy-config:

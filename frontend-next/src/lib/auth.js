@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { query, queryOne } from './db';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || '';
 
 export function formatUser(user) {
   if (!user) return null;
@@ -11,7 +11,9 @@ export function formatUser(user) {
   delete formatted.remember_token;
   formatted.is_active = Boolean(user.is_active);
   if (formatted.avatar_url && !formatted.avatar_url.startsWith('http')) {
-    formatted.avatar_url = `${BACKEND_URL}${formatted.avatar_url.startsWith('/') ? '' : '/'}${formatted.avatar_url}`;
+    formatted.avatar_url = BACKEND_URL
+      ? `${BACKEND_URL}${formatted.avatar_url.startsWith('/') ? '' : '/'}${formatted.avatar_url}`
+      : (formatted.avatar_url.startsWith('/') ? formatted.avatar_url : `/${formatted.avatar_url}`);
   }
   return formatted;
 }
@@ -23,7 +25,9 @@ export function formatBookCover(coverImage) {
   if (coverImage.startsWith('http://') || coverImage.startsWith('https://')) {
     return coverImage;
   }
-  return `${BACKEND_URL}${coverImage.startsWith('/') ? '' : '/'}${coverImage}`;
+  return BACKEND_URL
+    ? `${BACKEND_URL}${coverImage.startsWith('/') ? '' : '/'}${coverImage}`
+    : (coverImage.startsWith('/') ? coverImage : `/${coverImage}`);
 }
 
 export function verifyPassword(plainPassword, hashedPassword) {
