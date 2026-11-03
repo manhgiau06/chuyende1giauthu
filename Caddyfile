@@ -1,10 +1,10 @@
-# Caddy Reverse Proxy cho Cổng 80 (chuẩn Azure / Production)
-# Tự động định tuyến:
+# Caddy Reverse Proxy cho Domain HTTPS (chuẩn Azure / Production)
+# Tự động cấp phát và gia hạn chứng chỉ SSL Let's Encrypt / ZeroSSL miễn phí
 #   /api/*     -> Backend Next.js :8000
 #   /storage/* -> Thư mục ảnh Uploads của Backend :8000
 #   /*         -> Frontend React :5173
 
-:80 {
+giauthu.duckdns.org {
     handle /api/* {
         reverse_proxy backend:8000
     }

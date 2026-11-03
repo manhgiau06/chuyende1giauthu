@@ -65,6 +65,7 @@ services:
     image: caddy:2-alpine
     ports:
       - "80:80"                   # Cổng Web chuẩn trên Azure và các Cloud Server
+      - "443:443"                 # Cổng HTTPS (SSL Tự Động của Caddy)
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
