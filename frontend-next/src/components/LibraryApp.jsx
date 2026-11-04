@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { Search, BookOpen, Sparkles, Filter, Bookmark, ShoppingBag, Truck, CheckCircle2, ShieldCheck, HeartHandshake, Plus } from 'lucide-react';
+import { Search, BookOpen, Sparkles, Filter, Bookmark, ShoppingBag, Truck, CheckCircle2, ShieldCheck, HeartHandshake, Plus, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import api from '../api';
 import Navbar from './Navbar';
 import AuthModal from './AuthModal';
@@ -20,6 +20,7 @@ import SendNotificationModal from './SendNotificationModal';
 import DigitalLibraryCardModal from './DigitalLibraryCardModal';
 import LibrarianView from './LibrarianView';
 import AdminView from './AdminView';
+import AIChatWidget from './AIChatWidget';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -29,6 +30,11 @@ export default function App() {
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [availabilityFilter, setAvailabilityFilter] = useState('all'); // 'all' | 'borrowable' | 'salable'
+  const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'price_asc' | 'price_desc' | 'year_desc' | 'title_asc'
+  const [currentPage, setCurrentPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [totalBooks, setTotalBooks] = useState(0);
   const [loading, setLoading] = useState(false);
 
   // Modals visibility
@@ -124,26 +130,34 @@ export default function App() {
       const res = await api.post(`/wishlist/${bookId}/toggle`);
       if (res.data.is_wishlisted) {
         setWishlistBookIds([...wishlistBookIds, bookId]);
-        showToast('ÄÃ£ thÃªm vÃ o danh sÃ¡ch yÃªu thÃ­ch!');
+        showToast('Đã thêm vào danh sách yêu thích!');
       } else {
         setWishlistBookIds(wishlistBookIds.filter(id => id !== bookId));
-        showToast('ÄÃ£ xÃ³a khá»i danh sÃ¡ch yÃªu thÃ­ch');
+        showToast('Đã xóa khỏi danh sách yêu thích');
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'KhÃ´ng thá»ƒ thá»±c hiá»‡n!');
+      alert(err.response?.data?.message || 'Không thể thực hiện!');
     }
   };
 
-  const fetchBooks = async () => {
+  const fetchBooks = async (pageToLoad = currentPage) => {
     setLoading(true);
     try {
-      const params = {};
+      const params = {
+        page: pageToLoad,
+        per_page: 8,
+        sort: sortBy,
+      };
       if (searchKeyword) params.keyword = searchKeyword;
       if (selectedCategory) params.category_id = selectedCategory;
+      if (availabilityFilter !== 'all') params.availability = availabilityFilter;
 
       const res = await api.get('/books', { params });
       const rawData = res.data?.data || res.data || [];
       setBooks(Array.isArray(rawData) ? rawData : []);
+      setCurrentPage(Number(res.data?.current_page || pageToLoad));
+      setLastPage(Number(res.data?.last_page || 1));
+      setTotalBooks(Number(res.data?.total ?? (Array.isArray(rawData) ? rawData.length : 0)));
     } catch (err) {
       console.error(err);
       setBooks([]);
@@ -170,10 +184,14 @@ export default function App() {
   };
 
   useEffect(() => {
+    setCurrentPage(1);
+  }, [searchKeyword, selectedCategory, availabilityFilter, sortBy]);
+
+  useEffect(() => {
     if (activeTab === 'catalog') {
-      fetchBooks();
+      fetchBooks(currentPage);
     }
-  }, [searchKeyword, selectedCategory, activeTab]);
+  }, [searchKeyword, selectedCategory, availabilityFilter, sortBy, currentPage, activeTab]);
 
   const handleLogout = async () => {
     try {
@@ -184,7 +202,7 @@ export default function App() {
     setWishlistBookIds([]);
     setNotificationCount(0);
     setActiveTab('catalog');
-    showToast('ÄÃ£ Ä‘Äƒng xuáº¥t thÃ nh cÃ´ng!');
+    showToast('Đã đăng xuất thành công!');
   };
 
   const handleBorrowBook = async (book) => {
@@ -193,13 +211,13 @@ export default function App() {
       return;
     }
     try {
-      const res = await api.post('/borrow-tickets', {
+      await api.post('/borrow-tickets', {
         book_ids: [book.id],
       });
-      showToast('ÄÃ£ gá»­i yÃªu cáº§u mÆ°á»£n sÃ¡ch thÃ nh cÃ´ng! Vui lÃ²ng Ä‘á»£i thá»§ thÆ° duyá»‡t.');
+      showToast('Đã gửi yêu cầu mượn sách thành công! Vui lòng đợi thủ thư duyệt.');
       fetchBooks();
     } catch (err) {
-      alert(err.response?.data?.message || 'KhÃ´ng thá»ƒ mÆ°á»£n sÃ¡ch!');
+      alert(err.response?.data?.message || 'Không thể mượn sách!');
     }
   };
 
@@ -214,7 +232,7 @@ export default function App() {
     } else {
       setCart([...cart, { ...book, quantity: 1 }]);
     }
-    showToast(`ÄÃ£ thÃªm '${book.title}' vÃ o giá» hÃ ng!`);
+    showToast(`Đã thêm '${book.title}' vào giỏ hàng!`);
   };
 
   const handleRemoveFromCart = (bookId) => {
@@ -230,7 +248,7 @@ export default function App() {
       });
       setPaymentInfo(res.data);
     } catch (err) {
-      alert(err.response?.data?.message || 'KhÃ´ng thá»ƒ táº¡o yÃªu cáº§u thanh toÃ¡n chuyá»ƒn khoáº£n!');
+      alert(err.response?.data?.message || 'Không thể tạo yêu cầu thanh toán chuyển khoản!');
     }
   };
 
@@ -241,7 +259,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
         <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-3" />
-        <p className="text-xs font-bold text-slate-500">Äang xÃ¡c thá»±c quyá»n truy cáº­p...</p>
+        <p className="text-xs font-bold text-slate-500">Đang xác thực quyền truy cập...</p>
       </div>
     );
   }
@@ -253,7 +271,7 @@ export default function App() {
           setUser(loggedUser);
           fetchWishlistIds();
           fetchNotificationCount();
-          showToast(`ÄÄƒng nháº­p thÃ nh cÃ´ng vá»›i vai trÃ²: ${loggedUser.role}`);
+          showToast(`Đăng nhập thành công với vai trò: ${loggedUser.role}`);
         }}
       />
     );
@@ -302,7 +320,6 @@ export default function App() {
           <main className="max-w-7xl mx-auto px-4 pb-16 space-y-8">
             {/* Hero Banner */}
             <div className="hero-banner p-8 md:p-12 relative overflow-hidden rounded-3xl shadow-2xl">
-              
               {/* Floating Magic Dust Particles inside Banner */}
               <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
                 {[...Array(16)].map((_, i) => (
@@ -331,31 +348,31 @@ export default function App() {
               <div className="max-w-2xl space-y-4 relative z-10">
                 <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white/15 backdrop-blur-md text-white text-xs font-bold rounded-full border border-white/20 shadow-sm relative overflow-hidden group">
                   <Sparkles className="w-4 h-4 text-amber-300 animate-spin" style={{ animationDuration: '8s' }} /> 
-                  <span>Há»‡ Thá»‘ng Quáº£n LÃ½ ThÆ° Viá»‡n ThÃ´ng Minh 4.0</span>
+                  <span>Hệ Thống Quản Lý Thư Viện Thông Minh 4.0</span>
                 </span>
                 <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white leading-tight tracking-tight drop-shadow-md">
-                  Tra Cá»©u, MÆ°á»£n & Mua SÃ¡ch <br />
+                  Tra Cứu, Mượn & Mua Sách <br />
                   <span className="text-sky-300 font-extrabold drop-shadow-sm">
-                    Giao Táº­n NÆ¡i Nhanh ChÃ³ng
+                    Giao Tận Nơi Nhanh Chóng
                   </span>
                 </h1>
                 <p className="text-blue-100 text-sm md:text-base leading-relaxed font-normal">
-                  Há»‡ thá»‘ng há»— trá»£ Ä‘á»™c giáº£ tá»± mÆ°á»£n sÃ¡ch giáº¥y, gia háº¡n trá»±c tuyáº¿n 01 láº§n, thanh toÃ¡n phÃ­ pháº¡t trá»… háº¡n tá»± Ä‘á»™ng qua MoMo hoáº·c mua sÃ¡ch má»›i vá»›i dá»‹ch vá»¥ váº­n chuyá»ƒn nhanh.
+                  Hệ thống hỗ trợ độc giả tự mượn sách giấy, gia hạn trực tuyến 01 lần, thanh toán phí phạt trễ hạn tự động qua MoMo hoặc mua sách mới với dịch vụ vận chuyển nhanh.
                 </p>
 
                 {/* Hero Stats with staggered rhythmic wave float */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 text-xs">
                   <div className="hero-stat-card animate-float-phase-1">
-                    <div className="font-black text-white text-xl tracking-tight">100% Kháº£ dá»¥ng</div>
-                    <div className="text-blue-100/90 text-[11px] font-medium mt-0.5">Tá»“n kho cáº­p nháº­t tá»©c thÃ¬</div>
+                    <div className="font-black text-white text-xl tracking-tight">100% Khả dụng</div>
+                    <div className="text-blue-100/90 text-[11px] font-medium mt-0.5">Tồn kho cập nhật tức thì</div>
                   </div>
                   <div className="hero-stat-card animate-float-phase-2">
-                    <div className="font-black text-amber-300 text-xl tracking-tight">14 NgÃ y mÆ°á»£n</div>
-                    <div className="text-blue-100/90 text-[11px] font-medium mt-0.5">Tá»‘i Ä‘a 3 cuá»‘n sÃ¡ch giáº¥y</div>
+                    <div className="font-black text-amber-300 text-xl tracking-tight">14 Ngày mượn</div>
+                    <div className="text-blue-100/90 text-[11px] font-medium mt-0.5">Tối đa 3 cuốn sách giấy</div>
                   </div>
                   <div className="hero-stat-card animate-float-phase-3">
-                    <div className="font-black text-emerald-300 text-xl tracking-tight">MoMo & VNPay</div>
-                    <div className="text-blue-100/90 text-[11px] font-medium mt-0.5">Thanh toÃ¡n tá»± Ä‘á»™ng 24/7</div>
+                    <div className="font-black text-emerald-300 text-xl tracking-tight">MoMo & VietQR</div>
+                    <div className="text-blue-100/90 text-[11px] font-medium mt-0.5">Thanh toán tự động 24/7</div>
                   </div>
                 </div>
               </div>
@@ -369,7 +386,7 @@ export default function App() {
                   <Search className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
-                    placeholder="TÃ¬m theo tÃªn sÃ¡ch, tÃ¡c giáº£, ISBN..."
+                    placeholder="Tìm theo tên sách, tác giả, ISBN..."
                     value={searchKeyword}
                     onChange={(e) => setSearchKeyword(e.target.value)}
                     className="input-control pl-11 pr-9 py-2.5 text-sm shadow-sm w-full bg-white border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
@@ -378,9 +395,9 @@ export default function App() {
                     <button 
                       onClick={() => setSearchKeyword('')}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold p-1 rounded-full hover:bg-slate-100 transition-colors"
-                      title="XÃ³a tÃ¬m kiáº¿m"
+                      title="Xóa tìm kiếm"
                     >
-                      âœ•
+                      ✕
                     </button>
                   )}
                 </div>
@@ -395,7 +412,7 @@ export default function App() {
                         : 'bg-white text-slate-700 hover:text-blue-600 hover:bg-blue-50/50 border border-slate-200 shadow-sm'
                     }`}
                   >
-                    Táº¥t Cáº£ Thá»ƒ Loáº¡i
+                    Tất Cả Thể Loại
                   </button>
                   {categoryList.map((cat) => (
                     <button
@@ -415,39 +432,128 @@ export default function App() {
                     <button
                       onClick={() => setIsAddBookOpen(true)}
                       className="px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all flex items-center gap-1.5 flex-shrink-0 cursor-pointer ml-auto"
-                      title="ThÃªm Ä‘áº§u sÃ¡ch má»›i"
+                      title="Thêm đầu sách mới"
                     >
-                      <Plus className="w-3.5 h-3.5" /> ThÃªm SÃ¡ch Má»›i
+                      <Plus className="w-3.5 h-3.5" /> Thêm Sách Mới
                     </button>
                   )}
+                </div>
+              </div>
+
+              {/* Advanced Filter & Sort Toolbar */}
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-white/80 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-slate-200 shadow-sm text-xs">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-bold text-slate-600 flex items-center gap-1">
+                    <Filter className="w-3.5 h-3.5 text-blue-600" /> Tình trạng:
+                  </span>
+                  {[
+                    { id: 'all', label: 'Tất cả sách' },
+                    { id: 'borrowable', label: '📗 Còn bản sao mượn' },
+                    { id: 'salable', label: '🛒 Còn hàng mua ngay' },
+                  ].map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => setAvailabilityFilter(f.id)}
+                      className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
+                        availabilityFilter === f.id
+                          ? 'bg-indigo-600 text-white shadow-sm'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 ml-auto">
+                  <div className="flex items-center gap-1.5">
+                    <ArrowUpDown className="w-3.5 h-3.5 text-blue-600" />
+                    <span className="font-bold text-slate-600">Sắp xếp:</span>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white font-bold text-slate-700 focus:outline-none focus:border-blue-500 cursor-pointer"
+                    >
+                      <option value="newest">Mới cập nhật</option>
+                      <option value="price_asc">Giá bán: Thấp → Cao</option>
+                      <option value="price_desc">Giá bán: Cao → Thấp</option>
+                      <option value="year_desc">Năm xuất bản mới nhất</option>
+                      <option value="title_asc">Tên sách: A → Z</option>
+                    </select>
+                  </div>
+
+                  <span className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-xl font-extrabold">
+                    Hiển thị {bookList.length} / {totalBooks} đầu sách
+                  </span>
                 </div>
               </div>
             </div>
 
             {/* Book Catalog Grid */}
             {loading ? (
-              <div className="text-center py-20 text-slate-400">Äang táº£i dá»¯ liá»‡u Ä‘áº§u sÃ¡ch tá»« há»‡ thá»‘ng...</div>
+              <div className="text-center py-20 text-slate-400">Đang tải dữ liệu đầu sách từ hệ thống...</div>
             ) : bookList.length === 0 ? (
               <div className="text-center py-20 glass-panel">
                 <BookOpen className="w-12 h-12 text-slate-500 mx-auto mb-3" />
-                <h3 className="text-lg font-bold text-white">KhÃ´ng tÃ¬m tháº¥y Ä‘áº§u sÃ¡ch nÃ o</h3>
-                <p className="text-xs text-slate-400">Thá»­ tá»« khÃ³a hoáº·c chá»n thá»ƒ loáº¡i khÃ¡c</p>
+                <h3 className="text-lg font-bold text-slate-800">Không tìm thấy đầu sách nào</h3>
+                <p className="text-xs text-slate-500">Thử từ khóa hoặc chọn bộ lọc khác</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {bookList.map((b) => (
-                  <BookCard
-                    key={b.id}
-                    book={b}
-                    onSelect={setSelectedBook}
-                    onBorrow={handleBorrowBook}
-                    onAddToCart={handleAddToCart}
-                    user={user}
-                    isWishlisted={wishlistBookIds.includes(b.id)}
-                    onToggleWishlist={handleToggleWishlist}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                  {bookList.map((b) => (
+                    <BookCard
+                      key={b.id}
+                      book={b}
+                      onSelect={setSelectedBook}
+                      onBorrow={handleBorrowBook}
+                      onAddToCart={handleAddToCart}
+                      user={user}
+                      isWishlisted={wishlistBookIds.includes(b.id)}
+                      onToggleWishlist={handleToggleWishlist}
+                    />
+                  ))}
+                </div>
+
+                {/* Pagination Bar */}
+                {lastPage > 1 && (
+                  <div className="flex flex-wrap items-center justify-center gap-2 pt-6">
+                    <button
+                      type="button"
+                      disabled={currentPage <= 1}
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 disabled:opacity-40 flex items-center gap-1 shadow-sm cursor-pointer"
+                    >
+                      <ChevronLeft className="w-4 h-4" /> Trước
+                    </button>
+
+                    {Array.from({ length: lastPage }, (_, idx) => idx + 1).map((pageNum) => (
+                      <button
+                        key={pageNum}
+                        type="button"
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`w-9 h-9 rounded-xl text-xs font-extrabold transition-all shadow-sm cursor-pointer ${
+                          currentPage === pageNum
+                            ? 'bg-blue-600 text-white shadow-blue-500/25'
+                            : 'bg-white text-slate-700 border border-slate-200 hover:bg-blue-50 hover:text-blue-600'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    ))}
+
+                    <button
+                      type="button"
+                      disabled={currentPage >= lastPage}
+                      onClick={() => setCurrentPage((p) => Math.min(lastPage, p + 1))}
+                      className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 disabled:opacity-40 flex items-center gap-1 shadow-sm cursor-pointer"
+                    >
+                      Sau <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </main>
         )}
@@ -456,8 +562,8 @@ export default function App() {
       {/* Footer */}
       <footer className="border-t border-white/10 py-8 bg-slate-950/80 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 space-y-2">
-          <p className="font-bold text-slate-400">Â© 2026 THÆ¯ VIá»†N ONLINE â€” Há»‡ thá»‘ng Quáº£n lÃ½ MÆ°á»£n Tráº£ & BÃ¡n SÃ¡ch Trá»±c Tuyáº¿n</p>
-          <p>XÃ¢y dá»±ng trÃªn ná»n táº£ng Laravel 13 API Backend & React Vite Frontend | TÃ­ch há»£p Redis 7 & Chuyá»ƒn Khoáº£n NgÃ¢n HÃ ng VietQR (Thá»§ ThÆ° Duyá»‡t)</p>
+          <p className="font-bold text-slate-400">© 2026 THƯ VIỆN ONLINE — Hệ thống Quản lý Mượn Trả & Bán Sách Trực Tuyến</p>
+          <p>Xây dựng trên nền tảng Next.js Fullstack API & React Vite Frontend | Tích hợp MySQL InnoDB Transaction & VietQR Auto-Webhook</p>
         </div>
       </footer>
 
@@ -468,7 +574,7 @@ export default function App() {
         onLoginSuccess={(loggedUser) => {
           setUser(loggedUser);
           fetchWishlistIds();
-          showToast(`ÄÄƒng nháº­p thÃ nh cÃ´ng vá»›i vai trÃ²: ${loggedUser.role}`);
+          showToast(`Đăng nhập thành công với vai trò: ${loggedUser.role}`);
         }}
       />
 
@@ -507,9 +613,10 @@ export default function App() {
         paymentInfo={paymentInfo}
         onSuccess={(awaitingApproval) => {
           if (awaitingApproval) {
-            showToast('ÄÃ£ gá»­i thÃ´ng tin chuyá»ƒn khoáº£n! Vui lÃ²ng Ä‘á»£i thá»§ thÆ° duyá»‡t.');
+            showToast('Đã gửi thông tin chuyển khoản! Vui lòng đợi thủ thư duyệt.');
           } else {
-            showToast('Thanh toÃ¡n Ä‘Æ¡n hÃ ng/phÃ­ pháº¡t thÃ nh cÃ´ng!');
+            showToast('Thanh toán đơn hàng/phí phạt thành công!');
+            fetchNotificationCount();
           }
           fetchBooks();
         }}
@@ -521,7 +628,7 @@ export default function App() {
         user={user}
         onUpdateSuccess={(updatedUser) => {
           setUser(updatedUser);
-          showToast('ÄÃ£ cáº­p nháº­t thÃ´ng tin há»“ sÆ¡!');
+          showToast('Đã cập nhật thông tin hồ sơ!');
         }}
       />
 
@@ -530,7 +637,7 @@ export default function App() {
         onClose={() => setIsCategoryManageOpen(false)}
         onCategoryCreated={(newCat) => {
           fetchCategories();
-          showToast(`ÄÃ£ thÃªm thá»ƒ loáº¡i '${newCat.name}'!`);
+          showToast(`Đã thêm thể loại '${newCat.name}'!`);
         }}
       />
 
@@ -543,7 +650,7 @@ export default function App() {
           setSearchKeyword('');
           fetchBooks();
           fetchCategories();
-          showToast(`ÄÃ£ thÃªm sÃ¡ch '${newBook?.title || ''}' thÃ nh cÃ´ng!`);
+          showToast(`Đã thêm sách '${newBook?.title || ''}' thành công!`);
         }}
       />
 
@@ -565,7 +672,7 @@ export default function App() {
         isOpen={isSendNotificationOpen}
         onClose={() => setIsSendNotificationOpen(false)}
         onSuccess={(data) => {
-          showToast(data.message || 'ÄÃ£ gá»­i thÃ´ng bÃ¡o thÃ nh cÃ´ng!');
+          showToast(data.message || 'Đã gửi thông báo thành công!');
           fetchNotificationCount();
         }}
       />
@@ -575,8 +682,8 @@ export default function App() {
         onClose={() => setIsDigitalCardOpen(false)}
         user={user}
       />
+
+      <AIChatWidget onSelectBook={setSelectedBook} />
     </div>
   );
 }
-
-

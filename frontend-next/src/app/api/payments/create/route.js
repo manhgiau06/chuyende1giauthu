@@ -11,7 +11,9 @@ export async function POST(request) {
     }
 
     const { data } = await parseRequestData(request);
-    const { payable_type, payable_id, payment_method } = data;
+    const payable_type = data.payable_type || data.type;
+    const payable_id = data.payable_id || data.id;
+    const payment_method = data.payment_method;
 
     let amount = 0;
     let modelClass = '';
@@ -23,6 +25,12 @@ export async function POST(request) {
       if (!order) {
         return NextResponse.json({ message: 'Không tìm thấy đơn hàng' }, { status: 404 });
       }
+      if (user.role === 'reader' && Number(order.reader_id) !== Number(user.id)) {
+        return NextResponse.json(
+          { message: 'Bạn không có quyền tạo thanh toán cho đơn hàng của người khác!' },
+          { status: 403 }
+        );
+      }
       amount = Number(order.total_amount || 0);
       modelClass = 'App\\Models\\Order';
     } else if (payable_type === 'borrow_ticket') {
@@ -31,6 +39,12 @@ export async function POST(request) {
       ]);
       if (!ticket) {
         return NextResponse.json({ message: 'Không tìm thấy phiếu mượn' }, { status: 404 });
+      }
+      if (user.role === 'reader' && Number(ticket.reader_id) !== Number(user.id)) {
+        return NextResponse.json(
+          { message: 'Bạn không có quyền tạo thanh toán cho phiếu mượn của người khác!' },
+          { status: 403 }
+        );
       }
       amount = Number(ticket.total_late_fee || 0);
       modelClass = 'App\\Models\\BorrowTicket';
@@ -57,6 +71,7 @@ export async function POST(request) {
     const qrUrl = `https://img.vietqr.io/image/${bankId}-${accountNumber}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(txnCode)}&accountName=${encodeURIComponent(accountHolder)}`;
 
     const now = new Date();
+    const normalizedMethod = payment_method === 'momo' ? 'momo' : 'bank_transfer';
     const res = await query(
       `INSERT INTO payments (payable_type, payable_id, reader_id, payment_method, transaction_code, amount, status, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
@@ -64,7 +79,7 @@ export async function POST(request) {
         modelClass,
         Number(payable_id),
         user.id,
-        payment_method || 'vnpay',
+        normalizedMethod,
         txnCode,
         amount,
         now,
@@ -79,11 +94,15 @@ export async function POST(request) {
     return NextResponse.json({
       message: 'Tạo mã thanh toán QR thành công',
       payment: { ...payment, amount: Number(payment.amount || 0), qr_code_url: qrUrl },
+      qr_code_url: qrUrl,
       bank_info: {
         bank_name: bankName,
         bank_id: bankId,
         account_number: accountNumber,
         account_holder: accountHolder,
+        amount: Number(payment.amount || 0),
+        transfer_content: txnCode,
+        qr_code_url: qrUrl,
       },
       transaction_code: txnCode,
     });

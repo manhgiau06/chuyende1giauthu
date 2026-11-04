@@ -80,8 +80,11 @@ export default function AdminView({ user }) {
     }
   };
 
-  const handleExportCsv = () => {
-    window.open('http://127.0.0.1:8000/api/admin/export-csv?token=' + localStorage.getItem('token'), '_blank');
+  const handleExportCsv = (type = 'orders') => {
+    const reportType = typeof type === 'string' ? type : 'orders';
+    const token = encodeURIComponent(localStorage.getItem('token') || '');
+    const baseUrl = api.defaults.baseURL || '/api';
+    window.open(`${baseUrl}/admin/export-csv?type=${reportType}&token=${token}`, '_blank');
   };
 
   // RBAC User Actions
@@ -487,14 +490,20 @@ export default function AdminView({ user }) {
       {/* ========================================================================= */}
       {activeAdminTab === 'reports' && (
         <div className="space-y-6">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-wrap justify-between items-center gap-3">
             <h3 className="text-xl font-bold text-slate-900">Báo Cáo Hoạt Động & Tham Số Hệ Thống</h3>
-            <div className="flex gap-2">
-              <button onClick={handleTriggerSchedule} className="btn-accent py-2 px-3 text-xs flex items-center gap-1.5">
+            <div className="flex flex-wrap gap-2">
+              <button onClick={handleTriggerSchedule} className="btn-accent py-2 px-3 text-xs flex items-center gap-1.5 cursor-pointer">
                 <Zap className="w-4 h-4" /> Kích Hoạt Worker 07:00 AM
               </button>
-              <button onClick={handleExportCsv} className="btn-primary py-2 px-3 text-xs flex items-center gap-1.5">
-                <Download className="w-4 h-4" /> Xuất File CSV
+              <button onClick={() => handleExportCsv('orders')} className="btn-primary py-2 px-3 text-xs flex items-center gap-1.5 cursor-pointer">
+                <Download className="w-4 h-4" /> Xuất CSV Đơn Hàng
+              </button>
+              <button onClick={() => handleExportCsv('borrows')} className="px-3 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer">
+                <Download className="w-4 h-4" /> Xuất CSV Mượn Trả
+              </button>
+              <button onClick={() => handleExportCsv('books')} className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer">
+                <Download className="w-4 h-4" /> Xuất CSV Kho Sách
               </button>
             </div>
           </div>
@@ -510,7 +519,7 @@ export default function AdminView({ user }) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="glass-panel p-6 border-l-4 border-pink-500 flex items-center justify-between">
               <div>
-                <div className="text-xs font-semibold text-slate-500">Doanh Thu Bán Sách Tháng Này</div>
+                <div className="text-xs font-semibold text-slate-500">Tổng Doanh Thu Hệ Thống</div>
                 <div className="text-2xl font-extrabold text-slate-900 mt-1">
                   {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(stats?.sales_revenue || 0)}
                 </div>
@@ -544,6 +553,82 @@ export default function AdminView({ user }) {
               </div>
             </div>
           </div>
+
+          {/* 6-Month Visual Bar Chart */}
+          {Array.isArray(stats?.monthly_stats) && stats.monthly_stats.length > 0 && (() => {
+            const maxRevenue = Math.max(...stats.monthly_stats.map((m) => Number(m.revenue || 0)), 1);
+            const maxActivity = Math.max(
+              ...stats.monthly_stats.map((m) => Math.max(Number(m.borrows || 0), Number(m.orders || 0))),
+              1
+            );
+            return (
+              <div className="glass-panel p-6 space-y-5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                      <TrendingUp className="w-5 h-5 text-indigo-600" /> Biểu Đồ Doanh Thu & Lưu Thông Sách (6 Tháng Gần Nhất)
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Theo dõi trực quan doanh thu bán sách + phí phạt và số lượt mượn/đặt mua hàng tháng
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs font-bold">
+                    <span className="flex items-center gap-1.5 text-indigo-600">
+                      <span className="w-3 h-3 rounded-sm bg-gradient-to-t from-indigo-600 to-blue-400 inline-block" /> Doanh thu
+                    </span>
+                    <span className="flex items-center gap-1.5 text-teal-600">
+                      <span className="w-3 h-3 rounded-sm bg-teal-500 inline-block" /> Lượt mượn
+                    </span>
+                    <span className="flex items-center gap-1.5 text-pink-600">
+                      <span className="w-3 h-3 rounded-sm bg-pink-500 inline-block" /> Đơn mua
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 pt-4">
+                  {stats.monthly_stats.map((m, idx) => {
+                    const revPct = Math.max(8, Math.round((Number(m.revenue || 0) / maxRevenue) * 100));
+                    const borrowPct = Math.max(8, Math.round((Number(m.borrows || 0) / maxActivity) * 100));
+                    const orderPct = Math.max(8, Math.round((Number(m.orders || 0) / maxActivity) * 100));
+                    return (
+                      <div key={idx} className="bg-slate-50/90 border border-slate-200/80 rounded-2xl p-3 flex flex-col justify-between hover:border-indigo-300 transition-all">
+                        <div className="text-center space-y-0.5 mb-2">
+                          <div className="text-[11px] font-extrabold text-indigo-700">
+                            {new Intl.NumberFormat('vi-VN').format(m.revenue || 0)}đ
+                          </div>
+                          <div className="text-[10px] text-slate-500 font-semibold">
+                            {m.borrows} mượn · {m.orders} đơn
+                          </div>
+                        </div>
+
+                        <div className="h-28 flex items-end justify-center gap-2 px-2 border-b border-slate-200 pb-1">
+                          <div
+                            style={{ height: `${revPct}%` }}
+                            title={`Doanh thu ${m.label}: ${new Intl.NumberFormat('vi-VN').format(m.revenue || 0)}đ`}
+                            className="w-4 rounded-t-md bg-gradient-to-t from-indigo-600 to-blue-400 transition-all duration-500"
+                          />
+                          <div
+                            style={{ height: `${borrowPct}%` }}
+                            title={`Lượt mượn ${m.label}: ${m.borrows}`}
+                            className="w-3 rounded-t-md bg-teal-500 transition-all duration-500"
+                          />
+                          <div
+                            style={{ height: `${orderPct}%` }}
+                            title={`Đơn mua ${m.label}: ${m.orders}`}
+                            className="w-3 rounded-t-md bg-pink-500 transition-all duration-500"
+                          />
+                        </div>
+
+                        <div className="text-center text-xs font-extrabold text-slate-700 pt-2">
+                          {m.label}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Unpaid Late Fee Readers */}
           <div className="glass-panel p-6 space-y-4">

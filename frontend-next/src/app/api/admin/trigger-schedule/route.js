@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { query, getSystemConfig } from '@/lib/db';
+import { requireRole } from '@/lib/auth';
 import { hydrateBorrowTickets } from '@/lib/helpers';
 
-export async function POST() {
+export async function POST(request) {
   try {
+    const { errorResponse } = await requireRole(request, ['admin', 'librarian']);
+    if (errorResponse) return errorResponse;
+
     const now = new Date();
     const lateFeePerDay = Number((await getSystemConfig('late_fee_per_day', 5000)) || 5000);
 

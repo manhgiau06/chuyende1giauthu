@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { query, queryOne } from '@/lib/db';
-import { formatUser } from '@/lib/auth';
+import { formatUser, requireRole } from '@/lib/auth';
 
 export async function GET(request) {
   try {
+    const { errorResponse } = await requireRole(request, ['admin', 'librarian']);
+    if (errorResponse) return errorResponse;
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') || '';
 

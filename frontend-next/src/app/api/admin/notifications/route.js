@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { requireRole } from '@/lib/auth';
 
-export async function GET() {
+export async function GET(request) {
   try {
+    const { errorResponse } = await requireRole(request, ['admin', 'librarian']);
+    if (errorResponse) return errorResponse;
+
     const rows = await query(
       `SELECT e.*, u.name AS reader_name, u.email AS reader_email
        FROM email_logs e

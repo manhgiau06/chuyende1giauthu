@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
-import { queryOne } from '@/lib/db';
+import { query, queryOne } from '@/lib/db';
+import { requireRole } from '@/lib/auth';
 
-export async function GET() {
+export async function GET(request) {
   try {
+    const { errorResponse } = await requireRole(request, ['admin']);
+    if (errorResponse) return errorResponse;
+
     const months = [];
     const now = new Date();
 
@@ -39,7 +43,31 @@ export async function GET() {
       });
     }
 
-    return NextResponse.json({ monthly_stats: months });
+    const totalRevenueRow = await queryOne(
+      `SELECT COALESCE(SUM(total_amount), 0) AS total FROM orders WHERE order_status != 'cancelled'`
+    );
+    const totalBorrowsRow = await queryOne(`SELECT COUNT(*) AS cnt FROM borrow_tickets`);
+    const unpaidReaders = await query(
+      `SELECT u.name AS reader_name, u.email AS reader_email,
+              COUNT(bt.id) AS tickets_count,
+              COALESCE(SUM(bt.total_late_fee), 0) AS total_debt
+       FROM borrow_tickets bt
+       JOIN users u ON bt.reader_id = u.id
+       WHERE bt.total_late_fee > 0
+       GROUP BY u.id, u.name, u.email
+       ORDER BY total_debt DESC`
+    );
+
+    return NextResponse.json({
+      monthly_stats: months,
+      sales_revenue: Number(totalRevenueRow?.total || 0),
+      borrow_tickets_count: Number(totalBorrowsRow?.cnt || 0),
+      unpaid_late_fee_readers: unpaidReaders.map((r) => ({
+        ...r,
+        tickets_count: Number(r.tickets_count || 0),
+        total_debt: Number(r.total_debt || 0),
+      })),
+    });
   } catch (err) {
     console.error('Monthly stats error:', err);
     return NextResponse.json({ message: 'Lỗi tải thống kê tháng' }, { status: 500 });

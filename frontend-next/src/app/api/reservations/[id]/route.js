@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import { query, queryOne } from '@/lib/db';
+import { requireAuth } from '@/lib/auth';
 
 export async function DELETE(request, { params }) {
   try {
+    const { user, errorResponse } = await requireAuth(request);
+    if (errorResponse) return errorResponse;
+
     const { id } = await params;
     const resId = Number(id);
 
@@ -12,6 +16,12 @@ export async function DELETE(request, { params }) {
     );
     if (!reservation) {
       return NextResponse.json({ message: 'Không tìm thấy yêu cầu đặt trước' }, { status: 404 });
+    }
+    if (user.role === 'reader' && Number(reservation.reader_id) !== Number(user.id)) {
+      return NextResponse.json(
+        { message: 'Bạn không có quyền hủy đặt trước của người khác!' },
+        { status: 403 }
+      );
     }
 
     await query(

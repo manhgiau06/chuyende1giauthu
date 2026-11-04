@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { query, queryOne } from '@/lib/db';
-import { getAuthUser, formatUser } from '@/lib/auth';
+import { requireRole, formatUser } from '@/lib/auth';
 
 export async function PUT(request, { params }) {
   try {
-    const authUser = await getAuthUser(request);
+    const { user: authUser, errorResponse } = await requireRole(request, ['admin']);
+    if (errorResponse) return errorResponse;
+
     const { id } = await params;
     const userId = Number(id);
 

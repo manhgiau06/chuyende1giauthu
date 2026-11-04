@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { query, queryOne } from '@/lib/db';
+import { requireRole } from '@/lib/auth';
 import { parseRequestData } from '@/lib/helpers';
 
 export async function GET() {
@@ -23,6 +24,9 @@ export async function GET() {
 
 export async function POST(request) {
   try {
+    const { errorResponse } = await requireRole(request, ['admin', 'librarian']);
+    if (errorResponse) return errorResponse;
+
     const { data } = await parseRequestData(request);
     const { name, description } = data;
     if (!name) {

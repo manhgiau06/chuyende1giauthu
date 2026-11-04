@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import { query, queryOne } from '@/lib/db';
-import { getAuthUser } from '@/lib/auth';
+import { requireRole } from '@/lib/auth';
 import { hydrateBorrowTickets } from '@/lib/helpers';
 
 export async function POST(request, { params }) {
   try {
-    const user = await getAuthUser(request);
+    const { user, errorResponse } = await requireRole(request, ['admin', 'librarian']);
+    if (errorResponse) return errorResponse;
+
     const { id } = await params;
     const ticketId = Number(id);
 

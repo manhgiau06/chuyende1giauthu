@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { query, queryOne } from '@/lib/db';
+import { query, queryOne, withTransaction } from '@/lib/db';
+import { requireRole } from '@/lib/auth';
 import { hydrateBooks, hydrateBookById, parseRequestData, saveUploadedFile } from '@/lib/helpers';
 
 export async function GET(request) {
@@ -7,6 +8,8 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const keyword = searchParams.get('keyword') || '';
     const categoryId = searchParams.get('category_id') || '';
+    const availability = searchParams.get('availability') || '';
+    const sort = searchParams.get('sort') || 'newest';
     const perPage = Math.max(1, Number(searchParams.get('per_page') || 15));
     const page = Math.max(1, Number(searchParams.get('page') || 1));
     const offset = (page - 1) * perPage;
@@ -15,15 +18,31 @@ export async function GET(request) {
     const params = [];
 
     if (keyword.trim()) {
-      conditions.push(`(title LIKE ? OR author LIKE ? OR isbn LIKE ?)`);
+      conditions.push(`(title LIKE ? OR author LIKE ? OR isbn LIKE ? OR publisher LIKE ?)`);
       const kw = `%${keyword.trim()}%`;
-      params.push(kw, kw, kw);
+      params.push(kw, kw, kw, kw);
     }
 
     if (categoryId) {
       conditions.push(`category_id = ?`);
       params.push(Number(categoryId));
     }
+
+    if (availability === 'borrowable') {
+      conditions.push(
+        `EXISTS (SELECT 1 FROM book_copies bc WHERE bc.book_id = books.id AND bc.status = 'available')`
+      );
+    } else if (availability === 'salable') {
+      conditions.push(
+        `is_salable = 1 AND EXISTS (SELECT 1 FROM book_inventories bi WHERE bi.book_id = books.id AND (bi.stock_quantity - bi.reserved_quantity) > 0)`
+      );
+    }
+
+    let orderBy = 'id DESC';
+    if (sort === 'price_asc') orderBy = 'sale_price ASC, id DESC';
+    else if (sort === 'price_desc') orderBy = 'sale_price DESC, id DESC';
+    else if (sort === 'year_desc') orderBy = 'COALESCE(publish_year, 0) DESC, id DESC';
+    else if (sort === 'title_asc') orderBy = 'title ASC, id DESC';
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
@@ -34,7 +53,7 @@ export async function GET(request) {
     const total = Number(countRow?.total || 0);
 
     const rawBooks = await query(
-      `SELECT * FROM books ${whereClause} ORDER BY id DESC LIMIT ? OFFSET ?`,
+      `SELECT * FROM books ${whereClause} ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
       [...params, perPage, offset]
     );
 
@@ -56,6 +75,9 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    const { errorResponse } = await requireRole(request, ['admin', 'librarian']);
+    if (errorResponse) return errorResponse;
+
     const { data, formData } = await parseRequestData(request);
     const {
       title,
@@ -98,42 +120,46 @@ export async function POST(request) {
     const isSalable = saleStock > 0 ? 1 : 0;
     const now = new Date();
 
-    const result = await query(
-      `INSERT INTO books (title, author, category_id, isbn, publisher, publish_year, description, cover_image, is_borrowable, is_salable, sale_price, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        title,
-        author,
-        Number(category_id),
-        isbn,
-        publisher || null,
-        publish_year ? Number(publish_year) : null,
-        description || null,
-        coverPath,
-        isBorrowable,
-        isSalable,
-        sale_price ? Number(sale_price) : 0,
-        now,
-        now,
-      ]
-    );
-
-    const bookId = result.insertId;
-
-    for (let i = 1; i <= borrowCopies; i++) {
-      const barcode = `BC-${bookId}-${String(i).padStart(3, '0')}`;
-      await query(
-        `INSERT INTO book_copies (book_id, barcode, \`condition\`, status, created_at, updated_at)
-         VALUES (?, ?, 'new', 'available', ?, ?)`,
-        [bookId, barcode, now, now]
+    const bookId = await withTransaction(async (tx) => {
+      const result = await tx.query(
+        `INSERT INTO books (title, author, category_id, isbn, publisher, publish_year, description, cover_image, is_borrowable, is_salable, sale_price, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          title,
+          author,
+          Number(category_id),
+          isbn,
+          publisher || null,
+          publish_year ? Number(publish_year) : null,
+          description || null,
+          coverPath,
+          isBorrowable,
+          isSalable,
+          sale_price ? Number(sale_price) : 0,
+          now,
+          now,
+        ]
       );
-    }
 
-    await query(
-      `INSERT INTO book_inventories (book_id, stock_quantity, reserved_quantity, created_at, updated_at)
-       VALUES (?, ?, 0, ?, ?)`,
-      [bookId, saleStock, now, now]
-    );
+      const newBookId = result.insertId;
+
+      for (let i = 1; i <= borrowCopies; i++) {
+        const barcode = `BC-${newBookId}-${String(i).padStart(3, '0')}`;
+        await tx.query(
+          `INSERT INTO book_copies (book_id, barcode, \`condition\`, status, created_at, updated_at)
+           VALUES (?, ?, 'new', 'available', ?, ?)`,
+          [newBookId, barcode, now, now]
+        );
+      }
+
+      await tx.query(
+        `INSERT INTO book_inventories (book_id, stock_quantity, reserved_quantity, created_at, updated_at)
+         VALUES (?, ?, 0, ?, ?)`,
+        [newBookId, saleStock, now, now]
+      );
+
+      return newBookId;
+    });
 
     const book = await hydrateBookById(bookId);
 

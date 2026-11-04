@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, QrCode, CheckCircle, ShieldCheck, Copy, Check, Building2, User, CreditCard, Clock, ArrowRight, RefreshCw } from 'lucide-react';
+import { X, QrCode, CheckCircle, ShieldCheck, Copy, Check, Building2, User, CreditCard, Clock, ArrowRight, RefreshCw, Zap } from 'lucide-react';
 import api from '../api';
 
 export default function BankPaymentModal({ isOpen, onClose, paymentInfo, onSuccess }) {
   const [loading, setLoading] = useState(false);
+  const [webhookLoading, setWebhookLoading] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [copiedField, setCopiedField] = useState(null);
   const [msg, setMsg] = useState('');
@@ -57,6 +58,29 @@ export default function BankPaymentModal({ isOpen, onClose, paymentInfo, onSucce
       setError(err.response?.data?.message || 'Không thể gửi xác nhận, vui lòng thử lại!');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAutoWebhookVerify = async () => {
+    setWebhookLoading(true);
+    setError('');
+    try {
+      const res = await api.post('/payments/webhook', {
+        transaction_code: bankInfo.transfer_content || paymentInfo.transaction_code,
+        amount: bankInfo.amount,
+        content: `CHUYEN KHOAN ${bankInfo.transfer_content || paymentInfo.transaction_code}`,
+      });
+      setMsg(res.data.message || 'Đối soát tự động VietQR thành công!');
+      if (onSuccess) {
+        onSuccess(false); // false = paid immediately
+      }
+      setTimeout(() => {
+        onClose();
+      }, 1400);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Lỗi đối soát Webhook tự động!');
+    } finally {
+      setWebhookLoading(false);
     }
   };
 
@@ -208,19 +232,32 @@ export default function BankPaymentModal({ isOpen, onClose, paymentInfo, onSucce
             </div>
           </div>
         ) : (
-          <button
-            onClick={handleConfirmTransfer}
-            disabled={loading}
-            className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm rounded-2xl shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70"
-          >
-            {loading ? (
-              'Đang gửi xác nhận...'
-            ) : (
-              <>
-                Tôi Đã Chuyển Khoản Xong — Gửi Thủ Thư Duyệt <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
+          <div className="space-y-2.5">
+            <button
+              onClick={handleAutoWebhookVerify}
+              disabled={webhookLoading || loading}
+              className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-sm rounded-2xl shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70"
+            >
+              <Zap className="w-4 h-4" />
+              {webhookLoading
+                ? 'Đang đối soát Webhook VietQR...'
+                : 'Tự Động Đối Soát VietQR (Duyệt Tức Thì Qua Webhook)'}
+            </button>
+
+            <button
+              onClick={handleConfirmTransfer}
+              disabled={loading || webhookLoading}
+              className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs rounded-2xl shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70"
+            >
+              {loading ? (
+                'Đang gửi xác nhận...'
+              ) : (
+                <>
+                  Tôi Đã Chuyển Khoản Xong — Gửi Thủ Thư Duyệt Thủ Công <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </div>
         )}
 
       </div>

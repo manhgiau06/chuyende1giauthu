@@ -14,7 +14,7 @@ CREATE TABLE `book_copies` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `book_copies_barcode_unique` (`barcode`),
   KEY `book_copies_book_id_foreign` (`book_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=70 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=70 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `book_copies` (`id`, `book_id`, `barcode`, `condition`, `status`, `created_at`, `updated_at`) VALUES (1, 1, 'BC-1-001', 'good', 'available', '2026-09-21 09:47:04.000', '2026-09-22 06:50:02.000');
 INSERT INTO `book_copies` (`id`, `book_id`, `barcode`, `condition`, `status`, `created_at`, `updated_at`) VALUES (2, 1, 'BC-1-002', 'good', 'available', '2026-09-21 09:47:04.000', '2026-09-21 09:47:04.000');
@@ -96,7 +96,7 @@ CREATE TABLE `book_inventories` (
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `book_inventories_book_id_unique` (`book_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `book_inventories` (`id`, `book_id`, `stock_quantity`, `reserved_quantity`, `created_at`, `updated_at`) VALUES (1, 1, 15, 2, '2026-09-21 09:47:04.000', '2026-09-22 08:54:15.000');
 INSERT INTO `book_inventories` (`id`, `book_id`, `stock_quantity`, `reserved_quantity`, `created_at`, `updated_at`) VALUES (2, 2, 10, 8, '2026-09-21 09:47:04.000', '2026-09-22 09:03:49.000');
@@ -133,7 +133,7 @@ CREATE TABLE `book_reservations` (
   PRIMARY KEY (`id`),
   KEY `book_reservations_book_id_foreign` (`book_id`),
   KEY `book_reservations_reader_id_foreign` (`reader_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 DROP TABLE IF EXISTS `book_reviews`;
 CREATE TABLE `book_reviews` (
@@ -147,7 +147,7 @@ CREATE TABLE `book_reviews` (
   PRIMARY KEY (`id`),
   KEY `book_reviews_book_id_foreign` (`book_id`),
   KEY `book_reviews_reader_id_foreign` (`reader_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `book_reviews` (`id`, `book_id`, `reader_id`, `rating`, `comment`, `created_at`, `updated_at`) VALUES (1, 1, 3, 5, 'Sách cực kỳ chất lượng, giải thích rất chi tiết về mã sạch!', '2026-09-21 09:47:04.000', '2026-09-21 09:47:04.000');
 INSERT INTO `book_reviews` (`id`, `book_id`, `reader_id`, `rating`, `comment`, `created_at`, `updated_at`) VALUES (2, 1, 4, 5, 'Cuốn sách gối đầu giường không thể thiếu cho dân dev!', '2026-09-21 09:47:04.000', '2026-09-21 09:47:04.000');
@@ -173,7 +173,7 @@ CREATE TABLE `books` (
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `books_category_id_foreign` (`category_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `books` (`id`, `category_id`, `title`, `author`, `isbn`, `publisher`, `publish_year`, `description`, `cover_image`, `sale_price`, `is_borrowable`, `is_salable`, `created_at`, `updated_at`) VALUES (1, 1, 'Clean Code: A Handbook of Agile Software Craftsmanship', 'Robert C. Martin', '9780132350884', 'Prentice Hall', 2008, 'Cuốn sách kinh điển về quy chuẩn mã sạch, refactoring và nguyên lý lập trình phần mềm vững chắc.', 'https://images.unsplash.com/photo-1532012197267-da84d127e765?auto=format&fit=crop&w=600&q=80', 250000, 1, 1, '2026-09-21 09:47:04.000', '2026-09-21 09:47:04.000');
 INSERT INTO `books` (`id`, `category_id`, `title`, `author`, `isbn`, `publisher`, `publish_year`, `description`, `cover_image`, `sale_price`, `is_borrowable`, `is_salable`, `created_at`, `updated_at`) VALUES (2, 1, 'Design Patterns: Elements of Reusable Object-Oriented Software', 'Erich Gamma, Richard Helm, Ralph Johnson, John Vlissides', '9780201633610', 'Addison-Wesley', 1994, 'Tài liệu gối đầu giường về 23 thiết kế mẫu Gang of Four dành cho lập trình viên hướng đối tượng.', 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80', 320000, 1, 1, '2026-09-21 09:47:04.000', '2026-09-21 09:47:04.000');
@@ -207,7 +207,7 @@ CREATE TABLE `borrow_items` (
   PRIMARY KEY (`id`),
   KEY `borrow_items_borrow_ticket_id_foreign` (`borrow_ticket_id`),
   KEY `borrow_items_book_copy_id_foreign` (`book_copy_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `borrow_items` (`id`, `borrow_ticket_id`, `book_copy_id`, `due_date`, `returned_at`, `late_fee`, `status`, `created_at`, `updated_at`) VALUES (1, 1, 1, '2026-09-30 00:00:00.000', '2026-09-22 06:50:02.000', 0, 'returned', '2026-09-21 09:47:04.000', '2026-09-22 06:50:02.000');
 INSERT INTO `borrow_items` (`id`, `borrow_ticket_id`, `book_copy_id`, `due_date`, `returned_at`, `late_fee`, `status`, `created_at`, `updated_at`) VALUES (2, 2, 3, '2026-09-17 00:00:00.000', '2026-09-22 06:50:03.000', -26423.8, 'returned', '2026-09-21 09:47:04.000', '2026-09-22 06:50:03.000');
@@ -233,7 +233,7 @@ CREATE TABLE `borrow_tickets` (
   PRIMARY KEY (`id`),
   KEY `borrow_tickets_reader_id_foreign` (`reader_id`),
   KEY `borrow_tickets_librarian_id_foreign` (`librarian_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `borrow_tickets` (`id`, `reader_id`, `librarian_id`, `status`, `borrow_date`, `due_date`, `returned_date`, `renewed_count`, `total_late_fee`, `notes`, `created_at`, `updated_at`) VALUES (1, 3, 2, 'returned', '2026-09-16 00:00:00.000', '2026-09-30 00:00:00.000', '2026-09-22 00:00:00.000', 0, 0, 'Đã duyệt tại quầy dịch vụ', '2026-09-21 09:47:04.000', '2026-09-22 06:50:02.000');
 INSERT INTO `borrow_tickets` (`id`, `reader_id`, `librarian_id`, `status`, `borrow_date`, `due_date`, `returned_date`, `renewed_count`, `total_late_fee`, `notes`, `created_at`, `updated_at`) VALUES (2, 4, 2, 'returned', '2026-09-03 00:00:00.000', '2026-09-17 00:00:00.000', '2026-09-22 00:00:00.000', 0, -26423.8, 'Quá hạn 4 ngày (Phí phạt 20,000 đ)', '2026-09-21 09:47:04.000', '2026-09-22 06:50:03.000');
@@ -249,7 +249,7 @@ CREATE TABLE `cache` (
   `expiration` bigint NOT NULL,
   PRIMARY KEY (`key`),
   KEY `cache_expiration_index` (`expiration`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `cache` (`key`, `value`, `expiration`) VALUES ('laravel-cache-categories:all', 'a:6:{i:0;a:7:{s:2:\"id\";i:1;s:4:\"name\";s:23:\"Công nghệ thông tin\";s:4:\"slug\";s:19:\"cong-nghe-thong-tin\";s:11:\"description\";s:47:\"Sách Lập trình, Cơ sở dữ liệu và AI\";s:10:\"created_at\";s:27:\"2026-09-21T09:47:04.000000Z\";s:10:\"updated_at\";s:27:\"2026-09-21T09:47:04.000000Z\";s:11:\"books_count\";i:4;}i:1;a:7:{s:2:\"id\";i:2;s:4:\"name\";s:27:\"Văn học & Nghệ thuật\";s:4:\"slug\";s:18:\"van-hoc-nghe-thuat\";s:11:\"description\";s:58:\"Các tác phẩm văn học kinh điển và hiện đại\";s:10:\"created_at\";s:27:\"2026-09-21T09:47:04.000000Z\";s:10:\"updated_at\";s:27:\"2026-09-21T09:47:04.000000Z\";s:11:\"books_count\";i:3;}i:2;a:7:{s:2:\"id\";i:3;s:4:\"name\";s:24:\"Kinh tế & Quản trị\";s:4:\"slug\";s:16:\"kinh-te-quan-tri\";s:11:\"description\";s:56:\"Quản trị kinh doanh, tài chính và khởi nghiệp\";s:10:\"created_at\";s:27:\"2026-09-21T09:47:04.000000Z\";s:10:\"updated_at\";s:27:\"2026-09-21T09:47:04.000000Z\";s:11:\"books_count\";i:2;}i:3;a:7:{s:2:\"id\";i:4;s:4:\"name\";s:28:\"Tâm lý & Kỹ năng sống\";s:4:\"slug\";s:19:\"tam-ly-ky-nang-song\";s:11:\"description\";s:50:\"Phát triển bản thân, tư duy và giao tiếp\";s:10:\"created_at\";s:27:\"2026-09-21T09:47:04.000000Z\";s:10:\"updated_at\";s:27:\"2026-09-21T09:47:04.000000Z\";s:11:\"books_count\";i:2;}i:4;a:7:{s:2:\"id\";i:5;s:4:\"name\";s:26:\"Lịch sử & Lược sử\";s:4:\"slug\";s:15:\"lich-su-luoc-su\";s:11:\"description\";s:51:\"Lịch sử văn minh nhân loại và thế giới\";s:10:\"created_at\";s:27:\"2026-09-21T09:47:04.000000Z\";s:10:\"updated_at\";s:27:\"2026-09-21T09:47:04.000000Z\";s:11:\"books_count\";i:2;}i:5;a:7:{s:2:\"id\";i:6;s:4:\"name\";s:3:\"xxx\";s:4:\"slug\";s:3:\"xxx\";s:11:\"description\";s:3:\"xxx\";s:10:\"created_at\";s:27:\"2026-09-22T09:05:01.000000Z\";s:10:\"updated_at\";s:27:\"2026-09-22T09:05:01.000000Z\";s:11:\"books_count\";i:4;}}', 1791884303);
 INSERT INTO `cache` (`key`, `value`, `expiration`) VALUES ('laravel-cache-books:1:available_copies', 'i:5;', 1791801504);
@@ -296,7 +296,7 @@ CREATE TABLE `cache_locks` (
   `expiration` bigint NOT NULL,
   PRIMARY KEY (`key`),
   KEY `cache_locks_expiration_index` (`expiration`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 DROP TABLE IF EXISTS `categories`;
 CREATE TABLE `categories` (
@@ -308,7 +308,7 @@ CREATE TABLE `categories` (
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `categories_slug_unique` (`slug`)
-) ENGINE=MyISAM AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `categories` (`id`, `name`, `slug`, `description`, `created_at`, `updated_at`) VALUES (1, 'Công nghệ thông tin', 'cong-nghe-thong-tin', 'Sách Lập trình, Cơ sở dữ liệu và AI', '2026-09-21 09:47:04.000', '2026-09-21 09:47:04.000');
 INSERT INTO `categories` (`id`, `name`, `slug`, `description`, `created_at`, `updated_at`) VALUES (2, 'Văn học & Nghệ thuật', 'van-hoc-nghe-thuat', 'Các tác phẩm văn học kinh điển và hiện đại', '2026-09-21 09:47:04.000', '2026-09-21 09:47:04.000');
@@ -331,7 +331,7 @@ CREATE TABLE `deliveries` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `deliveries_tracking_number_unique` (`tracking_number`),
   KEY `deliveries_order_id_foreign` (`order_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `deliveries` (`id`, `order_id`, `tracking_number`, `carrier`, `status`, `shipped_at`, `delivered_at`, `created_at`, `updated_at`) VALUES (1, 1, 'VNPOST-48065128', 'VNPost Express', 'delivered', '2026-09-20 21:47:04.000', '2026-09-22 06:50:22.000', '2026-09-21 09:47:04.000', '2026-09-22 06:50:22.000');
 INSERT INTO `deliveries` (`id`, `order_id`, `tracking_number`, `carrier`, `status`, `shipped_at`, `delivered_at`, `created_at`, `updated_at`) VALUES (2, 2, 'VNP-92834915', 'VNPost Express', 'pending', NULL, NULL, '2026-09-22 08:06:17.000', '2026-09-22 08:06:17.000');
@@ -362,7 +362,7 @@ CREATE TABLE `delivery_histories` (
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `delivery_histories_delivery_id_foreign` (`delivery_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=35 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=35 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `delivery_histories` (`id`, `delivery_id`, `status`, `note`, `location`, `created_at`, `updated_at`) VALUES (1, 1, 'picking', 'Đã tiếp nhận đơn hàng từ người gửi', 'Kho Bưu điện TP.HCM', '2026-09-21 09:47:04.000', '2026-09-21 09:47:04.000');
 INSERT INTO `delivery_histories` (`id`, `delivery_id`, `status`, `note`, `location`, `created_at`, `updated_at`) VALUES (2, 1, 'shipping', 'Đang trên đường vận chuyển đến người nhận', 'Bưu cục Quận 1', '2026-09-21 09:47:04.000', '2026-09-21 09:47:04.000');
@@ -410,7 +410,7 @@ CREATE TABLE `email_logs` (
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `email_logs_reader_id_foreign` (`reader_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `email_logs` (`id`, `reader_id`, `type`, `subject`, `content`, `created_at`, `updated_at`) VALUES (1, 3, 'due_soon', '[THƯ VIỆN ONLINE] Nhắc nhở hạn trả sách mượn trước 2 ngày', 'Kính gửi độc giả Trần Thị Độc Giả,\n\nBạn có 1 phiếu mượn sách sắp đến hạn trả vào ngày 30/09/2026.\nVui lòng tự gia hạn online 01 lần (+7 ngày) hoặc trả sách tại quầy trước hạn để tránh phát sinh phí phạt.', '2026-09-21 09:47:04.000', '2026-09-21 09:47:04.000');
 INSERT INTO `email_logs` (`id`, `reader_id`, `type`, `subject`, `content`, `created_at`, `updated_at`) VALUES (2, 4, 'overdue', '[CẢNH BÁO QUÁ HẠN] Nhắc nợ phí phạt trễ hạn mượn sách', 'Kính gửi độc giả Lê Minh Tuấn,\n\nPhiếu mượn #2 của bạn đã quá hạn 4 ngày.\nTổng phí phạt phát sinh hiện tại: 20,000 VND.\nVui lòng thanh toán trực tuyến qua MoMo hoặc đến quầy hoàn trả sách.', '2026-09-21 09:47:04.000', '2026-09-21 09:47:04.000');
@@ -430,7 +430,7 @@ CREATE TABLE `failed_jobs` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `failed_jobs_uuid_unique` (`uuid`),
   KEY `failed_jobs_connection_queue_failed_at_index` (`connection`,`queue`,`failed_at`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 DROP TABLE IF EXISTS `job_batches`;
 CREATE TABLE `job_batches` (
@@ -445,7 +445,7 @@ CREATE TABLE `job_batches` (
   `created_at` int NOT NULL,
   `finished_at` int DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 DROP TABLE IF EXISTS `jobs`;
 CREATE TABLE `jobs` (
@@ -458,7 +458,7 @@ CREATE TABLE `jobs` (
   `created_at` int unsigned NOT NULL,
   PRIMARY KEY (`id`),
   KEY `jobs_queue_index` (`queue`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 DROP TABLE IF EXISTS `migrations`;
 CREATE TABLE `migrations` (
@@ -466,7 +466,7 @@ CREATE TABLE `migrations` (
   `migration` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `batch` int NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM AUTO_INCREMENT=23 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=23 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (1, '0001_01_01_000000_create_users_table', 1);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (2, '0001_01_01_000001_create_cache_table', 1);
@@ -504,7 +504,7 @@ CREATE TABLE `order_items` (
   PRIMARY KEY (`id`),
   KEY `order_items_order_id_foreign` (`order_id`),
   KEY `order_items_book_id_foreign` (`book_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `order_items` (`id`, `order_id`, `book_id`, `quantity`, `unit_price`, `subtotal`, `created_at`, `updated_at`) VALUES (1, 1, 1, 1, 250000, 250000, '2026-09-21 09:47:04.000', '2026-09-21 09:47:04.000');
 INSERT INTO `order_items` (`id`, `order_id`, `book_id`, `quantity`, `unit_price`, `subtotal`, `created_at`, `updated_at`) VALUES (2, 2, 2, 1, 320000, 320000, '2026-09-22 08:06:17.000', '2026-09-22 08:06:17.000');
@@ -542,7 +542,7 @@ CREATE TABLE `orders` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `orders_order_number_unique` (`order_number`),
   KEY `orders_reader_id_foreign` (`reader_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `orders` (`id`, `reader_id`, `order_number`, `total_amount`, `shipping_fee`, `payment_status`, `order_status`, `shipping_address`, `recipient_name`, `recipient_phone`, `notes`, `created_at`, `updated_at`) VALUES (1, 3, 'ORD-F0I8XZSY', 280000, 30000, 'paid', 'processing', '123 Đường Lê Lợi, Quận 1, TP. Hồ Chí Minh', 'Trần Thị Độc Giả', '0987654321', 'Giao vào giờ hành chính', '2026-09-21 09:47:04.000', '2026-09-22 08:33:43.000');
 INSERT INTO `orders` (`id`, `reader_id`, `order_number`, `total_amount`, `shipping_fee`, `payment_status`, `order_status`, `shipping_address`, `recipient_name`, `recipient_phone`, `notes`, `created_at`, `updated_at`) VALUES (2, 1, 'ORD-ISCXDFSV', 350000, 30000, 'paid', 'processing', 'Thành phố Hồ Chí Minh', 'Quản trị viên Hệ thống', '0901234567', NULL, '2026-09-22 08:06:17.000', '2026-09-22 08:06:43.000');
@@ -568,7 +568,7 @@ CREATE TABLE `password_reset_tokens` (
   `token` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`email`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 DROP TABLE IF EXISTS `payments`;
 CREATE TABLE `payments` (
@@ -592,7 +592,7 @@ CREATE TABLE `payments` (
   UNIQUE KEY `payments_transaction_code_unique` (`transaction_code`),
   KEY `payments_reader_id_foreign` (`reader_id`),
   KEY `payments_approved_by_foreign` (`approved_by`)
-) ENGINE=MyISAM AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `payments` (`id`, `payable_type`, `payable_id`, `reader_id`, `approved_by`, `payment_method`, `transaction_code`, `amount`, `status`, `raw_payload`, `paid_at`, `transfer_confirmed_at`, `approved_at`, `note`, `created_at`, `updated_at`) VALUES (1, 'App\\Models\\Order', 2, 1, NULL, 'momo', 'PAY-THGKJCWWTM', 350000, 'success', '{\"transaction_code\":\"PAY-THGKJCWWTM\",\"status\":\"success\"}', '2026-09-22 08:06:43.000', NULL, NULL, NULL, '2026-09-22 08:06:17.000', '2026-09-22 08:06:43.000');
 INSERT INTO `payments` (`id`, `payable_type`, `payable_id`, `reader_id`, `approved_by`, `payment_method`, `transaction_code`, `amount`, `status`, `raw_payload`, `paid_at`, `transfer_confirmed_at`, `approved_at`, `note`, `created_at`, `updated_at`) VALUES (2, 'App\\Models\\Order', 3, 3, NULL, 'momo', 'PAY-KCQKYO7OSD', 350000, 'pending', NULL, NULL, NULL, NULL, NULL, '2026-09-22 08:20:36.000', '2026-09-22 08:20:36.000');
@@ -629,7 +629,7 @@ CREATE TABLE `personal_access_tokens` (
   UNIQUE KEY `personal_access_tokens_token_unique` (`token`),
   KEY `personal_access_tokens_tokenable_type_tokenable_id_index` (`tokenable_type`,`tokenable_id`),
   KEY `personal_access_tokens_expires_at_index` (`expires_at`)
-) ENGINE=MyISAM AUTO_INCREMENT=84 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=84 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `personal_access_tokens` (`id`, `tokenable_type`, `tokenable_id`, `name`, `token`, `abilities`, `last_used_at`, `expires_at`, `created_at`, `updated_at`) VALUES (3, 'App\\Models\\User', 3, 'auth_token', '9f94ab3237bb14305ca27a0319907531ae8b133c2420c5f21e17b8f86ab12e50', '[\"*\"]', '2026-09-21 09:49:22.000', NULL, '2026-09-21 09:49:22.000', '2026-09-21 09:49:22.000');
 INSERT INTO `personal_access_tokens` (`id`, `tokenable_type`, `tokenable_id`, `name`, `token`, `abilities`, `last_used_at`, `expires_at`, `created_at`, `updated_at`) VALUES (56, 'App\\Models\\User', 1, 'auth_token', '1593f953f6ee78616e869b27bce572ef6d11c553afa08198cfb30cfd45caf1d1', '[\"*\"]', '2026-09-22 09:53:31.000', NULL, '2026-09-22 09:42:11.000', '2026-09-22 09:53:31.000');
@@ -652,7 +652,7 @@ CREATE TABLE `sessions` (
   PRIMARY KEY (`id`),
   KEY `sessions_user_id_index` (`user_id`),
   KEY `sessions_last_activity_index` (`last_activity`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `sessions` (`id`, `user_id`, `ip_address`, `user_agent`, `payload`, `last_activity`) VALUES ('nE24p14sa0AFSKkvgtCfahwVsysJYxKZrvqXEWFW', NULL, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 Edg/153.0.0.0', 'eyJfdG9rZW4iOiJHbTZkVTJYclgzcWQxdVpMM2NIMjRCNWx2M2RDOEVBNFlMdElZN1ZHIiwiX3ByZXZpb3VzIjp7InVybCI6Imh0dHA6XC9cLzEyNy4wLjAuMTo4MDAwIiwicm91dGUiOm51bGx9LCJfZmxhc2giOnsib2xkIjpbXSwibmV3IjpbXX19', 1790058261);
 INSERT INTO `sessions` (`id`, `user_id`, `ip_address`, `user_agent`, `payload`, `last_activity`) VALUES ('dFQsHMDcbLYDALTVUUSboNSRAv3wO9qt50vzMXWz', NULL, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 Edg/153.0.0.0', 'eyJfdG9rZW4iOiIya1ZvZTdwZUtIWjRjZ3FtWDloRUVvdndXMWpVOTZJR0ZCQ0dUeVBOIiwiX3ByZXZpb3VzIjp7InVybCI6Imh0dHA6XC9cLzEyNy4wLjAuMTo4MDAwIiwicm91dGUiOm51bGx9LCJfZmxhc2giOnsib2xkIjpbXSwibmV3IjpbXX19', 1790058262);
@@ -674,7 +674,7 @@ CREATE TABLE `system_configs` (
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `system_configs_key_unique` (`key`)
-) ENGINE=MyISAM AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `system_configs` (`id`, `key`, `value`, `description`, `created_at`, `updated_at`) VALUES (1, 'max_borrow_limit', '3', 'Số cuốn sách tối đa mượn cùng lúc', '2026-09-21 09:47:03.000', '2026-09-21 09:47:03.000');
 INSERT INTO `system_configs` (`id`, `key`, `value`, `description`, `created_at`, `updated_at`) VALUES (2, 'max_borrow_days', '14', 'Số ngày mượn sách mặc định', '2026-09-21 09:47:03.000', '2026-09-21 09:47:03.000');
@@ -703,7 +703,7 @@ CREATE TABLE `users` (
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `users_email_unique` (`email`)
-) ENGINE=MyISAM AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `users` (`id`, `name`, `email`, `email_verified_at`, `password`, `role`, `is_active`, `phone`, `address`, `avatar_url`, `remember_token`, `created_at`, `updated_at`) VALUES (1, 'Quản trị viên Hệ thống', 'admin@thuvien.vn', NULL, '$2y$12$.BEg9.JdYfk47xYyz5iZNOqc/NPSHa5HbRmbCHgnqzPyt07ghiM3W', 'admin', 1, '0901234567', 'Thành phố Hồ Chí Minh', '/storage/avatars/5IRFhr5vzSru9RKRM0G6M9fI41NyM3iAWJqxk4My.jpg', NULL, '2026-09-21 09:47:03.000', '2026-09-22 08:20:23.000');
 INSERT INTO `users` (`id`, `name`, `email`, `email_verified_at`, `password`, `role`, `is_active`, `phone`, `address`, `avatar_url`, `remember_token`, `created_at`, `updated_at`) VALUES (2, 'Thủ thư Nguyễn Văn A', 'thuthu@thuvien.vn', NULL, '$2y$12$CGvNKaM9TfxaHlEg/uHFtuL7AcgfmM1VWrL5r0.e2qlbEpFbLLbp.', 'librarian', 1, '0912345678', 'Quận 1, TP. Hồ Chí Minh', '/storage/avatars/fXxIhZTetYWCPe1WucsmO6CiKZaoVrnxD7wuE4vO.jpg', NULL, '2026-09-21 09:47:03.000', '2026-09-22 06:30:13.000');
@@ -721,7 +721,7 @@ CREATE TABLE `wishlists` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `wishlists_reader_id_book_id_unique` (`reader_id`,`book_id`),
   KEY `wishlists_book_id_foreign` (`book_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `wishlists` (`id`, `reader_id`, `book_id`, `created_at`, `updated_at`) VALUES (1, 3, 2, '2026-09-21 09:47:04.000', '2026-09-21 09:47:04.000');
 INSERT INTO `wishlists` (`id`, `reader_id`, `book_id`, `created_at`, `updated_at`) VALUES (2, 3, 5, '2026-09-21 09:47:04.000', '2026-09-21 09:47:04.000');

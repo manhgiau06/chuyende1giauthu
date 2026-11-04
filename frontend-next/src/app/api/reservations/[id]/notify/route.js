@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 import { query, queryOne } from '@/lib/db';
-import { formatUser } from '@/lib/auth';
+import { formatUser, requireRole } from '@/lib/auth';
 import { hydrateBookById } from '@/lib/helpers';
 
 export async function POST(request, { params }) {
   try {
+    const { errorResponse } = await requireRole(request, ['admin', 'librarian']);
+    if (errorResponse) return errorResponse;
+
     const { id } = await params;
     const resId = Number(id);
 

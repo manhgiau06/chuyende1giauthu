@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { query, queryOne } from '@/lib/db';
+import { requireRole } from '@/lib/auth';
 import { parseRequestData } from '@/lib/helpers';
 
-export async function GET() {
+export async function GET(request) {
   try {
+    const { errorResponse } = await requireRole(request, ['admin']);
+    if (errorResponse) return errorResponse;
+
     const configs = await query('SELECT * FROM system_configs ORDER BY id ASC');
     return NextResponse.json({ configs });
   } catch (err) {
@@ -14,6 +18,9 @@ export async function GET() {
 
 export async function POST(request) {
   try {
+    const { errorResponse } = await requireRole(request, ['admin']);
+    if (errorResponse) return errorResponse;
+
     const { data } = await parseRequestData(request);
     const configs = Array.isArray(data.configs) ? data.configs : [];
     const now = new Date();

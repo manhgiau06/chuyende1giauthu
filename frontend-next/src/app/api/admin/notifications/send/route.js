@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { requireRole } from '@/lib/auth';
 import { parseRequestData } from '@/lib/helpers';
 
 export async function POST(request) {
   try {
+    const { errorResponse } = await requireRole(request, ['admin', 'librarian']);
+    if (errorResponse) return errorResponse;
+
     const { data } = await parseRequestData(request);
     const { target, reader_id, subject, content, type } = data;
 

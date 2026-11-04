@@ -12,8 +12,9 @@ async function exportDatabase() {
     const table = Object.values(tRow)[0];
     const [createRow] = await query('SHOW CREATE TABLE ' + pool.escapeId(table));
     const createSql = createRow['Create Table']
-      // MySQL 8.4 compatibility for utf8mb4 collations
-      .replace(/utf8mb4_0900_ai_ci/g, 'utf8mb4_unicode_ci');
+      // MySQL 8.4 compatibility for utf8mb4 collations & enforce InnoDB
+      .replace(/utf8mb4_0900_ai_ci/g, 'utf8mb4_unicode_ci')
+      .replace(/ENGINE=MyISAM/gi, 'ENGINE=InnoDB');
 
     sql += `DROP TABLE IF EXISTS ${pool.escapeId(table)};\n`;
     sql += `${createSql};\n\n`;

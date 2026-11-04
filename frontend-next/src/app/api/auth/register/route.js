@@ -15,6 +15,13 @@ export async function POST(request) {
       );
     }
 
+    if (String(password).length < 6) {
+      return NextResponse.json(
+        { message: 'Mật khẩu phải có ít nhất 6 ký tự.' },
+        { status: 422 }
+      );
+    }
+
     const existing = await queryOne('SELECT id FROM users WHERE email = ? LIMIT 1', [email]);
     if (existing) {
       return NextResponse.json(

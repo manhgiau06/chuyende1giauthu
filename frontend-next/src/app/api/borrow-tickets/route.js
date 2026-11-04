@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { query, queryOne, getSystemConfig } from '@/lib/db';
+import { query, queryOne, getSystemConfig, withTransaction, HttpError } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
 import { hydrateBorrowTickets, parseRequestData } from '@/lib/helpers';
 
@@ -63,11 +63,17 @@ export async function POST(request) {
     }
 
     const { data } = await parseRequestData(request);
-    const readerId = data.reader_id || user.id;
-    const bookCopyIds = Array.isArray(data.book_copy_ids) ? data.book_copy_ids : [];
+    const readerId =
+      ['admin', 'librarian'].includes(user.role) && data.reader_id
+        ? Number(data.reader_id)
+        : user.id;
+    const rawCopyIds = Array.isArray(data.book_copy_ids) ? data.book_copy_ids : [];
+    const rawBookIds = Array.isArray(data.book_ids) ? data.book_ids : [];
+    let bookCopyIds = [...new Set(rawCopyIds.map((id) => Number(id)).filter(Boolean))];
+    const bookIdsInput = [...new Set(rawBookIds.map((id) => Number(id)).filter(Boolean))];
     const dueDays = Math.min(30, Math.max(1, Number(data.due_days || 14)));
 
-    if (bookCopyIds.length === 0) {
+    if (bookCopyIds.length === 0 && bookIdsInput.length === 0) {
       return NextResponse.json(
         { message: 'Vui lòng chọn ít nhất 1 cuốn sách để mượn.' },
         { status: 422 }
@@ -75,70 +81,88 @@ export async function POST(request) {
     }
 
     const maxBorrowLimit = Number((await getSystemConfig('max_borrow_books', 5)) || 5);
-    const currentBorrowsRow = await queryOne(
-      `SELECT COUNT(*) AS cnt FROM borrow_items bi
-       JOIN borrow_tickets bt ON bi.borrow_ticket_id = bt.id
-       WHERE bt.reader_id = ? AND bt.status IN ('pending', 'borrowed', 'overdue') AND bi.status = 'borrowed'`,
-      [readerId]
-    );
-    const currentBorrowedCount = Number(currentBorrowsRow?.cnt || 0);
 
-    if (currentBorrowedCount + bookCopyIds.length > maxBorrowLimit) {
-      return NextResponse.json(
-        {
-          message: `Vượt quá giới hạn mượn! Mỗi độc giả chỉ được mượn tối đa ${maxBorrowLimit} cuốn cùng lúc. Hiện tại đang giữ ${currentBorrowedCount} cuốn.`,
-        },
-        { status: 422 }
+    const ticketId = await withTransaction(async (tx) => {
+      if (bookCopyIds.length === 0 && bookIdsInput.length > 0) {
+        const resolvedCopyIds = [];
+        for (const bId of bookIdsInput) {
+          const availCopy = await tx.queryOne(
+            `SELECT id FROM book_copies WHERE book_id = ? AND status = 'available' ORDER BY id ASC LIMIT 1 FOR UPDATE`,
+            [bId]
+          );
+          if (!availCopy) {
+            throw new HttpError(
+              `Sách (ID: ${bId}) hiện đã hết bản sao khả dụng trên kệ để mượn.`,
+              422
+            );
+          }
+          resolvedCopyIds.push(Number(availCopy.id));
+        }
+        bookCopyIds = resolvedCopyIds;
+      }
+      const currentBorrowsRow = await tx.queryOne(
+        `SELECT COUNT(*) AS cnt FROM borrow_items bi
+         JOIN borrow_tickets bt ON bi.borrow_ticket_id = bt.id
+         WHERE bt.reader_id = ? AND bt.status IN ('pending', 'borrowed', 'overdue') AND bi.status = 'borrowed'`,
+        [readerId]
       );
-    }
+      const currentBorrowedCount = Number(currentBorrowsRow?.cnt || 0);
 
-    const placeholders = bookCopyIds.map(() => '?').join(',');
-    const copies = await query(
-      `SELECT * FROM book_copies WHERE id IN (${placeholders})`,
-      bookCopyIds
-    );
-    const copyMap = Object.fromEntries(copies.map((c) => [c.id, c]));
-
-    for (const copyId of bookCopyIds) {
-      const copy = copyMap[Number(copyId)];
-      if (!copy || copy.status !== 'available') {
-        return NextResponse.json(
-          {
-            message: `Bản sao sách (ID: ${copyId}) hiện không có sẵn để mượn.`,
-          },
-          { status: 422 }
+      if (currentBorrowedCount + bookCopyIds.length > maxBorrowLimit) {
+        throw new HttpError(
+          `Vượt quá giới hạn mượn! Mỗi độc giả chỉ được mượn tối đa ${maxBorrowLimit} cuốn cùng lúc. Hiện tại đang giữ ${currentBorrowedCount} cuốn.`,
+          422
         );
       }
-    }
 
-    const now = new Date();
-    const dueDate = new Date(now.getTime() + dueDays * 24 * 60 * 60 * 1000);
-
-    const ticketRes = await query(
-      `INSERT INTO borrow_tickets (reader_id, librarian_id, status, borrow_date, due_date, renewed_count, total_late_fee, notes, created_at, updated_at)
-       VALUES (?, NULL, 'pending', ?, ?, 0, 0, ?, ?, ?)`,
-      [readerId, now, dueDate, data.note || data.notes || null, now, now]
-    );
-
-    const ticketId = ticketRes.insertId;
-
-    for (const copyId of bookCopyIds) {
-      const copy = copyMap[Number(copyId)];
-      await query(
-        `UPDATE book_copies SET status = 'borrowed', updated_at = ? WHERE id = ?`,
-        [now, copy.id]
+      const placeholders = bookCopyIds.map(() => '?').join(',');
+      const copies = await tx.query(
+        `SELECT * FROM book_copies WHERE id IN (${placeholders}) FOR UPDATE`,
+        bookCopyIds
       );
-      await query(
-        `INSERT INTO borrow_items (borrow_ticket_id, book_copy_id, due_date, late_fee, status, created_at, updated_at)
-         VALUES (?, ?, ?, 0, 'borrowed', ?, ?)`,
-        [ticketId, copy.id, dueDate, now, now]
+      const copyMap = Object.fromEntries(copies.map((c) => [c.id, c]));
+
+      for (const copyId of bookCopyIds) {
+        const copy = copyMap[Number(copyId)];
+        if (!copy || copy.status !== 'available') {
+          throw new HttpError(
+            `Bản sao sách (ID: ${copyId}) hiện không có sẵn để mượn.`,
+            422
+          );
+        }
+      }
+
+      const now = new Date();
+      const dueDate = new Date(now.getTime() + dueDays * 24 * 60 * 60 * 1000);
+
+      const ticketRes = await tx.query(
+        `INSERT INTO borrow_tickets (reader_id, librarian_id, status, borrow_date, due_date, renewed_count, total_late_fee, notes, created_at, updated_at)
+         VALUES (?, NULL, 'pending', ?, ?, 0, 0, ?, ?, ?)`,
+        [readerId, now, dueDate, data.note || data.notes || null, now, now]
       );
-      await query(
-        `UPDATE book_reservations SET status = 'fulfilled', updated_at = ?
-         WHERE reader_id = ? AND book_id = ? AND status IN ('pending', 'notified')`,
-        [now, readerId, copy.book_id]
-      );
-    }
+
+      const newTicketId = ticketRes.insertId;
+
+      for (const copyId of bookCopyIds) {
+        const copy = copyMap[Number(copyId)];
+        await tx.query(
+          `UPDATE book_copies SET status = 'borrowed', updated_at = ? WHERE id = ?`,
+          [now, copy.id]
+        );
+        await tx.query(
+          `INSERT INTO borrow_items (borrow_ticket_id, book_copy_id, due_date, late_fee, status, created_at, updated_at)
+           VALUES (?, ?, ?, 0, 'borrowed', ?, ?)`,
+          [newTicketId, copy.id, dueDate, now, now]
+        );
+        await tx.query(
+          `UPDATE book_reservations SET status = 'fulfilled', updated_at = ?
+           WHERE reader_id = ? AND book_id = ? AND status IN ('pending', 'notified')`,
+          [now, readerId, copy.book_id]
+        );
+      }
+
+      return newTicketId;
+    });
 
     const rawTicket = await queryOne('SELECT * FROM borrow_tickets WHERE id = ? LIMIT 1', [
       ticketId,
@@ -153,6 +177,9 @@ export async function POST(request) {
       { status: 201 }
     );
   } catch (err) {
+    if (err instanceof HttpError) {
+      return NextResponse.json({ message: err.message }, { status: err.status });
+    }
     console.error('BorrowTickets POST error:', err);
     return NextResponse.json({ message: 'Lỗi tạo phiếu mượn' }, { status: 500 });
   }

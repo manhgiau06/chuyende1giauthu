@@ -21,19 +21,35 @@ export async function parseRequestData(request) {
   }
 }
 
+const ALLOWED_IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
+const ALLOWED_FOLDERS = new Set(['covers', 'avatars']);
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5MB
+
 export async function saveUploadedFile(file, folder = 'covers') {
   if (!file || typeof file === 'string' || !file.arrayBuffer) return null;
+  const safeFolder = ALLOWED_FOLDERS.has(folder) ? folder : 'covers';
+
+  const rawExt = (path.extname(file.name || '.jpg') || '.jpg').toLowerCase();
+  if (!ALLOWED_IMAGE_EXTS.has(rawExt)) {
+    throw new Error('Định dạng ảnh không hợp lệ (chỉ chấp nhận JPG, PNG, WEBP, GIF).');
+  }
+  if (file.type && !file.type.startsWith('image/')) {
+    throw new Error('Tệp tải lên phải là hình ảnh hợp lệ.');
+  }
+
   const bytes = await file.arrayBuffer();
   if (!bytes || bytes.byteLength === 0) return null;
+  if (bytes.byteLength > MAX_UPLOAD_BYTES) {
+    throw new Error('Dung lượng ảnh tối đa là 5MB.');
+  }
 
   const buffer = Buffer.from(bytes);
-  const ext = path.extname(file.name || '.jpg') || '.jpg';
-  const filename = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`;
-  const targetDir = path.join(process.cwd(), 'public', 'storage', folder);
+  const filename = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}${rawExt}`;
+  const targetDir = path.join(process.cwd(), 'public', 'storage', safeFolder);
   await fs.mkdir(targetDir, { recursive: true });
   const targetPath = path.join(targetDir, filename);
   await fs.writeFile(targetPath, buffer);
-  return `/storage/${folder}/${filename}`;
+  return `/storage/${safeFolder}/${filename}`;
 }
 
 export async function hydrateBooks(books) {

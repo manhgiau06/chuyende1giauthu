@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { query, queryOne, getSystemConfig } from '@/lib/db';
+import { requireAuth } from '@/lib/auth';
 import { hydrateBorrowTickets } from '@/lib/helpers';
 
 export async function POST(request, { params }) {
   try {
+    const { user, errorResponse } = await requireAuth(request);
+    if (errorResponse) return errorResponse;
+
     const { id } = await params;
     const ticketId = Number(id);
 
@@ -12,6 +16,12 @@ export async function POST(request, { params }) {
     ]);
     if (!ticket) {
       return NextResponse.json({ message: 'Không tìm thấy phiếu mượn' }, { status: 404 });
+    }
+    if (user.role === 'reader' && Number(ticket.reader_id) !== Number(user.id)) {
+      return NextResponse.json(
+        { message: 'Bạn không có quyền gia hạn phiếu mượn của người khác!' },
+        { status: 403 }
+      );
     }
     if (ticket.status !== 'borrowed') {
       return NextResponse.json(

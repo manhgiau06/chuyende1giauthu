@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, BookOpen, Sparkles, Filter, Bookmark, ShoppingBag, Truck, CheckCircle2, ShieldCheck, HeartHandshake, Plus } from 'lucide-react';
+import { Search, BookOpen, Sparkles, Filter, Bookmark, ShoppingBag, Truck, CheckCircle2, ShieldCheck, HeartHandshake, Plus, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import api from './api';
 import Navbar from './components/Navbar';
 import AuthModal from './components/AuthModal';
@@ -19,6 +19,7 @@ import SendNotificationModal from './components/SendNotificationModal';
 import DigitalLibraryCardModal from './components/DigitalLibraryCardModal';
 import LibrarianView from './components/LibrarianView';
 import AdminView from './components/AdminView';
+import AIChatWidget from './components/AIChatWidget';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -28,6 +29,11 @@ export default function App() {
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [availabilityFilter, setAvailabilityFilter] = useState('all'); // 'all' | 'borrowable' | 'salable'
+  const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'price_asc' | 'price_desc' | 'year_desc' | 'title_asc'
+  const [currentPage, setCurrentPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [totalBooks, setTotalBooks] = useState(0);
   const [loading, setLoading] = useState(false);
 
   // Modals visibility
@@ -133,16 +139,24 @@ export default function App() {
     }
   };
 
-  const fetchBooks = async () => {
+  const fetchBooks = async (pageToLoad = currentPage) => {
     setLoading(true);
     try {
-      const params = {};
+      const params = {
+        page: pageToLoad,
+        per_page: 8,
+        sort: sortBy,
+      };
       if (searchKeyword) params.keyword = searchKeyword;
       if (selectedCategory) params.category_id = selectedCategory;
+      if (availabilityFilter !== 'all') params.availability = availabilityFilter;
 
       const res = await api.get('/books', { params });
       const rawData = res.data?.data || res.data || [];
       setBooks(Array.isArray(rawData) ? rawData : []);
+      setCurrentPage(Number(res.data?.current_page || pageToLoad));
+      setLastPage(Number(res.data?.last_page || 1));
+      setTotalBooks(Number(res.data?.total ?? (Array.isArray(rawData) ? rawData.length : 0)));
     } catch (err) {
       console.error(err);
       setBooks([]);
@@ -169,10 +183,14 @@ export default function App() {
   };
 
   useEffect(() => {
+    setCurrentPage(1);
+  }, [searchKeyword, selectedCategory, availabilityFilter, sortBy]);
+
+  useEffect(() => {
     if (activeTab === 'catalog') {
-      fetchBooks();
+      fetchBooks(currentPage);
     }
-  }, [searchKeyword, selectedCategory, activeTab]);
+  }, [searchKeyword, selectedCategory, availabilityFilter, sortBy, currentPage, activeTab]);
 
   const handleLogout = async () => {
     try {
@@ -421,6 +439,55 @@ export default function App() {
                   )}
                 </div>
               </div>
+
+              {/* Advanced Filter & Sort Toolbar */}
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-white/80 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-slate-200 shadow-sm text-xs">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-bold text-slate-600 flex items-center gap-1">
+                    <Filter className="w-3.5 h-3.5 text-blue-600" /> Tình trạng:
+                  </span>
+                  {[
+                    { id: 'all', label: 'Tất cả sách' },
+                    { id: 'borrowable', label: '📗 Còn bản sao mượn' },
+                    { id: 'salable', label: '🛒 Còn hàng mua ngay' },
+                  ].map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => setAvailabilityFilter(f.id)}
+                      className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
+                        availabilityFilter === f.id
+                          ? 'bg-indigo-600 text-white shadow-sm'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 ml-auto">
+                  <div className="flex items-center gap-1.5">
+                    <ArrowUpDown className="w-3.5 h-3.5 text-blue-600" />
+                    <span className="font-bold text-slate-600">Sắp xếp:</span>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white font-bold text-slate-700 focus:outline-none focus:border-blue-500 cursor-pointer"
+                    >
+                      <option value="newest">Mới cập nhật</option>
+                      <option value="price_asc">Giá bán: Thấp → Cao</option>
+                      <option value="price_desc">Giá bán: Cao → Thấp</option>
+                      <option value="year_desc">Năm xuất bản mới nhất</option>
+                      <option value="title_asc">Tên sách: A → Z</option>
+                    </select>
+                  </div>
+
+                  <span className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-xl font-extrabold">
+                    Hiển thị {bookList.length} / {totalBooks} đầu sách
+                  </span>
+                </div>
+              </div>
             </div>
 
             {/* Book Catalog Grid */}
@@ -429,24 +496,64 @@ export default function App() {
             ) : bookList.length === 0 ? (
               <div className="text-center py-20 glass-panel">
                 <BookOpen className="w-12 h-12 text-slate-500 mx-auto mb-3" />
-                <h3 className="text-lg font-bold text-white">Không tìm thấy đầu sách nào</h3>
-                <p className="text-xs text-slate-400">Thử từ khóa hoặc chọn thể loại khác</p>
+                <h3 className="text-lg font-bold text-slate-800">Không tìm thấy đầu sách nào</h3>
+                <p className="text-xs text-slate-500">Thử từ khóa hoặc chọn bộ lọc khác</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {bookList.map((b) => (
-                  <BookCard
-                    key={b.id}
-                    book={b}
-                    onSelect={setSelectedBook}
-                    onBorrow={handleBorrowBook}
-                    onAddToCart={handleAddToCart}
-                    user={user}
-                    isWishlisted={wishlistBookIds.includes(b.id)}
-                    onToggleWishlist={handleToggleWishlist}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                  {bookList.map((b) => (
+                    <BookCard
+                      key={b.id}
+                      book={b}
+                      onSelect={setSelectedBook}
+                      onBorrow={handleBorrowBook}
+                      onAddToCart={handleAddToCart}
+                      user={user}
+                      isWishlisted={wishlistBookIds.includes(b.id)}
+                      onToggleWishlist={handleToggleWishlist}
+                    />
+                  ))}
+                </div>
+
+                {/* Pagination Bar */}
+                {lastPage > 1 && (
+                  <div className="flex flex-wrap items-center justify-center gap-2 pt-6">
+                    <button
+                      type="button"
+                      disabled={currentPage <= 1}
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 disabled:opacity-40 flex items-center gap-1 shadow-sm cursor-pointer"
+                    >
+                      <ChevronLeft className="w-4 h-4" /> Trước
+                    </button>
+
+                    {Array.from({ length: lastPage }, (_, idx) => idx + 1).map((pageNum) => (
+                      <button
+                        key={pageNum}
+                        type="button"
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`w-9 h-9 rounded-xl text-xs font-extrabold transition-all shadow-sm cursor-pointer ${
+                          currentPage === pageNum
+                            ? 'bg-blue-600 text-white shadow-blue-500/25'
+                            : 'bg-white text-slate-700 border border-slate-200 hover:bg-blue-50 hover:text-blue-600'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    ))}
+
+                    <button
+                      type="button"
+                      disabled={currentPage >= lastPage}
+                      onClick={() => setCurrentPage((p) => Math.min(lastPage, p + 1))}
+                      className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 disabled:opacity-40 flex items-center gap-1 shadow-sm cursor-pointer"
+                    >
+                      Sau <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </main>
         )}
@@ -509,6 +616,7 @@ export default function App() {
             showToast('Đã gửi thông tin chuyển khoản! Vui lòng đợi thủ thư duyệt.');
           } else {
             showToast('Thanh toán đơn hàng/phí phạt thành công!');
+            fetchNotificationCount();
           }
           fetchBooks();
         }}
@@ -574,6 +682,8 @@ export default function App() {
         onClose={() => setIsDigitalCardOpen(false)}
         user={user}
       />
+
+      <AIChatWidget onSelectBook={setSelectedBook} />
     </div>
   );
 }

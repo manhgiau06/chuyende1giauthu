@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { query, queryOne } from '@/lib/db';
+import { queryOne, withTransaction, HttpError } from '@/lib/db';
+import { requireRole } from '@/lib/auth';
 import { hydrateBookById, parseRequestData, saveUploadedFile } from '@/lib/helpers';
 
 export async function GET(request, { params }) {
@@ -18,6 +19,9 @@ export async function GET(request, { params }) {
 
 export async function POST(request, { params }) {
   try {
+    const { errorResponse } = await requireRole(request, ['admin', 'librarian']);
+    if (errorResponse) return errorResponse;
+
     const { id } = await params;
     const bookId = Number(id);
     const existing = await queryOne('SELECT * FROM books WHERE id = ? LIMIT 1', [bookId]);
@@ -55,66 +59,68 @@ export async function POST(request, { params }) {
     };
 
     const now = new Date();
-    await query(
-      `UPDATE books
-       SET title = ?, author = ?, category_id = ?, isbn = ?, publisher = ?, publish_year = ?,
-           description = ?, cover_image = ?, is_borrowable = ?, is_salable = ?, sale_price = ?, updated_at = ?
-       WHERE id = ?`,
-      [
-        data.title ?? existing.title,
-        data.author ?? existing.author,
-        data.category_id ? Number(data.category_id) : existing.category_id,
-        data.isbn ?? existing.isbn,
-        data.publisher !== undefined ? data.publisher : existing.publisher,
-        data.publish_year ? Number(data.publish_year) : existing.publish_year,
-        data.description !== undefined ? data.description : existing.description,
-        coverPath,
-        parseBool(data.is_borrowable, existing.is_borrowable),
-        parseBool(data.is_salable, existing.is_salable),
-        data.sale_price !== undefined ? Number(data.sale_price) : existing.sale_price,
-        now,
-        bookId,
-      ]
-    );
-
-    const addCopies = Math.max(0, Number(data.additional_copies || 0));
-    if (addCopies > 0) {
-      const countRow = await queryOne(
-        'SELECT COUNT(*) AS cnt FROM book_copies WHERE book_id = ?',
-        [bookId]
+    await withTransaction(async (tx) => {
+      await tx.query(
+        `UPDATE books
+         SET title = ?, author = ?, category_id = ?, isbn = ?, publisher = ?, publish_year = ?,
+             description = ?, cover_image = ?, is_borrowable = ?, is_salable = ?, sale_price = ?, updated_at = ?
+         WHERE id = ?`,
+        [
+          data.title ?? existing.title,
+          data.author ?? existing.author,
+          data.category_id ? Number(data.category_id) : existing.category_id,
+          data.isbn ?? existing.isbn,
+          data.publisher !== undefined ? data.publisher : existing.publisher,
+          data.publish_year ? Number(data.publish_year) : existing.publish_year,
+          data.description !== undefined ? data.description : existing.description,
+          coverPath,
+          parseBool(data.is_borrowable, existing.is_borrowable),
+          parseBool(data.is_salable, existing.is_salable),
+          data.sale_price !== undefined ? Number(data.sale_price) : existing.sale_price,
+          now,
+          bookId,
+        ]
       );
-      const currentCount = Number(countRow?.cnt || 0);
-      for (let i = 1; i <= addCopies; i++) {
-        const barcode = `BC-${bookId}-${String(currentCount + i).padStart(3, '0')}`;
-        await query(
-          `INSERT INTO book_copies (book_id, barcode, \`condition\`, status, created_at, updated_at)
-           VALUES (?, ?, 'new', 'available', ?, ?)`,
-          [bookId, barcode, now, now]
-        );
-      }
-      await query('UPDATE books SET is_borrowable = 1 WHERE id = ?', [bookId]);
-    }
 
-    const addStock = Math.max(0, Number(data.add_sale_stock || 0));
-    if (addStock > 0) {
-      const inv = await queryOne(
-        'SELECT * FROM book_inventories WHERE book_id = ? LIMIT 1',
-        [bookId]
-      );
-      if (inv) {
-        await query(
-          'UPDATE book_inventories SET stock_quantity = stock_quantity + ?, updated_at = ? WHERE id = ?',
-          [addStock, now, inv.id]
+      const addCopies = Math.max(0, Number(data.additional_copies || 0));
+      if (addCopies > 0) {
+        const countRow = await tx.queryOne(
+          'SELECT COUNT(*) AS cnt FROM book_copies WHERE book_id = ?',
+          [bookId]
         );
-      } else {
-        await query(
-          `INSERT INTO book_inventories (book_id, stock_quantity, reserved_quantity, created_at, updated_at)
-           VALUES (?, ?, 0, ?, ?)`,
-          [bookId, addStock, now, now]
-        );
+        const currentCount = Number(countRow?.cnt || 0);
+        for (let i = 1; i <= addCopies; i++) {
+          const barcode = `BC-${bookId}-${String(currentCount + i).padStart(3, '0')}`;
+          await tx.query(
+            `INSERT INTO book_copies (book_id, barcode, \`condition\`, status, created_at, updated_at)
+             VALUES (?, ?, 'new', 'available', ?, ?)`,
+            [bookId, barcode, now, now]
+          );
+        }
+        await tx.query('UPDATE books SET is_borrowable = 1 WHERE id = ?', [bookId]);
       }
-      await query('UPDATE books SET is_salable = 1 WHERE id = ?', [bookId]);
-    }
+
+      const addStock = Math.max(0, Number(data.add_sale_stock || 0));
+      if (addStock > 0) {
+        const inv = await tx.queryOne(
+          'SELECT * FROM book_inventories WHERE book_id = ? LIMIT 1 FOR UPDATE',
+          [bookId]
+        );
+        if (inv) {
+          await tx.query(
+            'UPDATE book_inventories SET stock_quantity = stock_quantity + ?, updated_at = ? WHERE id = ?',
+            [addStock, now, inv.id]
+          );
+        } else {
+          await tx.query(
+            `INSERT INTO book_inventories (book_id, stock_quantity, reserved_quantity, created_at, updated_at)
+             VALUES (?, ?, 0, ?, ?)`,
+            [bookId, addStock, now, now]
+          );
+        }
+        await tx.query('UPDATE books SET is_salable = 1 WHERE id = ?', [bookId]);
+      }
+    });
 
     const book = await hydrateBookById(bookId);
 
@@ -130,36 +136,41 @@ export async function POST(request, { params }) {
 
 export async function DELETE(request, { params }) {
   try {
+    const { errorResponse } = await requireRole(request, ['admin', 'librarian']);
+    if (errorResponse) return errorResponse;
+
     const { id } = await params;
     const bookId = Number(id);
 
-    const hasBorrows = await queryOne(
-      `SELECT bi.id FROM borrow_items bi
-       JOIN book_copies bc ON bi.book_copy_id = bc.id
-       WHERE bc.book_id = ? LIMIT 1`,
-      [bookId]
-    );
-    const hasOrders = await queryOne(
-      'SELECT id FROM order_items WHERE book_id = ? LIMIT 1',
-      [bookId]
-    );
-
-    if (hasBorrows || hasOrders) {
-      return NextResponse.json(
-        {
-          message:
-            'Không thể xoá đầu sách này vì đã có giao dịch mượn/bán trong lịch sử!',
-        },
-        { status: 422 }
+    await withTransaction(async (tx) => {
+      const hasBorrows = await tx.queryOne(
+        `SELECT bi.id FROM borrow_items bi
+         JOIN book_copies bc ON bi.book_copy_id = bc.id
+         WHERE bc.book_id = ? LIMIT 1`,
+        [bookId]
       );
-    }
+      const hasOrders = await tx.queryOne(
+        'SELECT id FROM order_items WHERE book_id = ? LIMIT 1',
+        [bookId]
+      );
 
-    await query('DELETE FROM book_copies WHERE book_id = ?', [bookId]);
-    await query('DELETE FROM book_inventories WHERE book_id = ?', [bookId]);
-    await query('DELETE FROM books WHERE id = ?', [bookId]);
+      if (hasBorrows || hasOrders) {
+        throw new HttpError(
+          'Không thể xoá đầu sách này vì đã có giao dịch mượn/bán trong lịch sử!',
+          422
+        );
+      }
+
+      await tx.query('DELETE FROM book_copies WHERE book_id = ?', [bookId]);
+      await tx.query('DELETE FROM book_inventories WHERE book_id = ?', [bookId]);
+      await tx.query('DELETE FROM books WHERE id = ?', [bookId]);
+    });
 
     return NextResponse.json({ message: 'Đã xoá sách khỏi hệ thống thành công!' });
   } catch (err) {
+    if (err instanceof HttpError) {
+      return NextResponse.json({ message: err.message }, { status: err.status });
+    }
     console.error('Book DELETE error:', err);
     return NextResponse.json({ message: 'Lỗi xoá sách' }, { status: 500 });
   }

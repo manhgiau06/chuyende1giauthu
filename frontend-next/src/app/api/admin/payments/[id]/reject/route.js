@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import { query, queryOne } from '@/lib/db';
+import { requireRole } from '@/lib/auth';
 
 export async function POST(request, { params }) {
   try {
+    const { errorResponse } = await requireRole(request, ['admin', 'librarian']);
+    if (errorResponse) return errorResponse;
+
     const { id } = await params;
     const paymentId = Number(id);
 

@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 import { query, queryOne } from '@/lib/db';
-import { hashPassword } from '@/lib/auth';
+import { hashPassword, requireRole } from '@/lib/auth';
 import { parseRequestData } from '@/lib/helpers';
 
 export async function POST(request, { params }) {
   try {
+    const { errorResponse } = await requireRole(request, ['admin']);
+    if (errorResponse) return errorResponse;
+
     const { id } = await params;
     const userId = Number(id);
     const { data } = await parseRequestData(request);

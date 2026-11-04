@@ -1,7 +1,44 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { X, Bookmark, ShoppingCart, Star, ShieldCheck, MessageSquare, Send, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { X, Bookmark, ShoppingCart, Star, ShieldCheck, MessageSquare, Send, Clock, CheckCircle, AlertCircle, BookOpen, ChevronLeft, ChevronRight, Sun, Moon, Type } from 'lucide-react';
 import api from '../api';
+
+function buildPreviewPages(book) {
+  const title = book.title || 'Tác phẩm';
+  const author = book.author || 'Tác giả';
+  const category = book.category?.name || 'Tri thức tổng hợp';
+  const publisher = book.publisher || 'Nhà xuất bản';
+  const year = book.publish_year || '2024';
+  const desc = book.description || 'Cuốn sách mang lại góc nhìn sâu sắc và thiết thực cho độc giả.';
+
+  return [
+    {
+      chapter: 'Phần 1 — Lời giới thiệu & Bối cảnh tác phẩm',
+      content: [
+        `Tác phẩm "${title}" của tác giả ${author} là một trong những ấn phẩm tiêu biểu thuộc chuyên mục ${category}, được xuất bản bởi ${publisher} (${year}).`,
+        desc,
+        `Ngay từ những trang đầu tiên, ${author} đã đặt ra một câu hỏi cốt lõi dành cho người đọc: Làm thế nào để chúng ta chuyển hóa kiến thức trên trang giấy thành năng lực tư duy và hành động thực tiễn trong kỷ nguyên số?`,
+        `Ấn bản điện tử trích đoạn này thuộc Hệ thống Thư Viện Tri Thức Số, giúp độc giả xem trước văn phong, cấu trúc chương mục và những luận điểm nền tảng trước khi quyết định đăng ký mượn bản in hoặc đặt mua sách về tủ sách cá nhân.`,
+      ],
+    },
+    {
+      chapter: 'Phần 2 — Trích đoạn Chương Mở Đầu',
+      content: [
+        `"Mọi hành trình vĩ đại đều khởi nguồn từ việc thay đổi cách chúng ta quan sát những điều quen thuộc hàng ngày." — Trích từ chương đầu của "${title}".`,
+        `Trong chương mở đầu, tác giả ${author} phân tích tỉ mỉ những sai lầm phổ biến khi tiếp cận lĩnh vực ${category}. Thay vì đưa ra các lý thuyết khô khan, cuốn sách dẫn dắt độc giả đi qua từng tình huống thực tế, minh họa rõ nét nguyên nhân và hệ quả của từng quyết định.`,
+        `Ba nguyên tắc trọng tâm được nhấn mạnh trong phần này bao gồm:\n• Nguyên tắc 1: Nắm vững bản chất cốt lõi trước khi đi vào công cụ hay chi tiết kỹ thuật.\n• Nguyên tắc 2: Rèn luyện thói quen phản biện, liên tục đặt câu hỏi "Tại sao?" và "Làm thế nào để tối ưu hơn?".\n• Nguyên tắc 3: Kiên trì áp dụng từng bước nhỏ mỗi ngày để tạo ra sự thay đổi bền vững.`,
+      ],
+    },
+    {
+      chapter: 'Phần 3 — Mục lục tóm tắt & Lời kết trích đoạn',
+      content: [
+        `Cấu trúc tổng thể của cuốn sách "${title}" được chia thành các phần mạch lạc, đi từ nền tảng tư duy đến các phương pháp thực hành nâng cao dành cho cả người mới bắt đầu lẫn độc giả chuyên sâu.`,
+        `Đánh giá từ Hội đồng Thư viện: Đây là đầu sách có giá trị tham khảo cao (Mã ISBN: ${book.isbn || 'Đang cập nhật'}), hiện đang có ${book.available_copies_count ?? 0} bản sao mượn trực tiếp tại quầy và ${book.available_stock_count ?? 0} cuốn mới trong kho phát hành.`,
+        `👉 Bạn đã đọc hết phần trích đoạn miễn phí (3/3 trang). Hãy nhấn nút "Mượn Sách" hoặc "Mua Sách" bên dưới để đọc trọn vẹn toàn bộ tác phẩm!`,
+      ],
+    },
+  ];
+}
 
 export default function BookDetailModal({ book, onClose, onBorrow, onAddToCart, user }) {
   const [reviews, setReviews] = useState([]);
@@ -12,10 +49,16 @@ export default function BookDetailModal({ book, onClose, onBorrow, onAddToCart, 
   const [reserving, setReserving] = useState(false);
   const [reserveMsg, setReserveMsg] = useState('');
   const [reserveError, setReserveError] = useState('');
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewPage, setPreviewPage] = useState(0);
+  const [readerTheme, setReaderTheme] = useState('sepia');
+  const [fontSize, setFontSize] = useState('base');
 
   useEffect(() => {
     if (book) {
       fetchReviews();
+      setIsPreviewOpen(false);
+      setPreviewPage(0);
     }
   }, [book]);
 
@@ -147,7 +190,19 @@ export default function BookDetailModal({ book, onClose, onBorrow, onAddToCart, 
             )}
 
             {/* Actions */}
-            <div className="flex gap-3 pt-2">
+            <div className="flex flex-wrap gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsPreviewOpen(!isPreviewOpen);
+                  setPreviewPage(0);
+                }}
+                className="py-2.5 px-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 transition-all cursor-pointer"
+              >
+                <BookOpen className="w-4 h-4 text-indigo-300" />
+                {isPreviewOpen ? 'Đóng Đọc Thử' : 'Đọc Thử E-Book (3 Trang)'}
+              </button>
+
               {borrowCount > 0 ? (
                 <button
                   onClick={() => { onBorrow(book); onClose(); }}
@@ -176,6 +231,98 @@ export default function BookDetailModal({ book, onClose, onBorrow, onAddToCart, 
             </div>
           </div>
         </div>
+
+        {/* E-Book Interactive Preview Reader */}
+        {isPreviewOpen && (() => {
+          const pages = buildPreviewPages(book);
+          const current = pages[previewPage] || pages[0];
+          const themeClasses =
+            readerTheme === 'light'
+              ? 'bg-white text-slate-800 border-slate-300'
+              : readerTheme === 'dark'
+              ? 'bg-slate-950 text-slate-200 border-slate-700'
+              : 'bg-[#fdf6e3] text-[#433422] border-[#e6d8b5]';
+          const textSizeClass =
+            fontSize === 'sm' ? 'text-xs leading-relaxed' : fontSize === 'lg' ? 'text-base leading-loose' : 'text-sm leading-relaxed';
+
+          return (
+            <div className="mt-6 pt-5 border-t border-white/10">
+              <div className={`rounded-2xl border p-5 sm:p-6 shadow-2xl transition-colors ${themeClasses}`}>
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-4 border-b border-current/15">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-indigo-500" />
+                    <span className="text-xs font-extrabold uppercase tracking-wider">
+                      Trình Đọc Thử Sách Số — {book.title}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setReaderTheme('light')}
+                      className={`px-2 py-1 rounded-lg text-[11px] font-bold border ${readerTheme === 'light' ? 'ring-2 ring-blue-500' : 'opacity-70'}`}
+                    >
+                      <Sun className="w-3.5 h-3.5 inline mr-0.5" /> Sáng
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReaderTheme('sepia')}
+                      className={`px-2 py-1 rounded-lg text-[11px] font-bold border ${readerTheme === 'sepia' ? 'ring-2 ring-amber-600' : 'opacity-70'}`}
+                    >
+                      📜 Giấy
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReaderTheme('dark')}
+                      className={`px-2 py-1 rounded-lg text-[11px] font-bold border ${readerTheme === 'dark' ? 'ring-2 ring-indigo-400' : 'opacity-70'}`}
+                    >
+                      <Moon className="w-3.5 h-3.5 inline mr-0.5" /> Tối
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFontSize(fontSize === 'sm' ? 'base' : fontSize === 'base' ? 'lg' : 'sm')}
+                      className="px-2 py-1 rounded-lg text-[11px] font-bold border ml-1"
+                    >
+                      <Type className="w-3.5 h-3.5 inline mr-0.5" /> Cỡ chữ
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-3 min-h-[210px]">
+                  <h4 className="font-black text-base sm:text-lg border-l-4 border-indigo-500 pl-3">
+                    {current.chapter}
+                  </h4>
+                  {current.content.map((para, idx) => (
+                    <p key={idx} className={`${textSizeClass} whitespace-pre-line`}>
+                      {para}
+                    </p>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between pt-4 mt-4 border-t border-current/15 text-xs font-bold">
+                  <button
+                    type="button"
+                    disabled={previewPage === 0}
+                    onClick={() => setPreviewPage((p) => Math.max(0, p - 1))}
+                    className="px-3 py-1.5 rounded-xl border border-current/20 disabled:opacity-40 flex items-center gap-1 cursor-pointer"
+                  >
+                    <ChevronLeft className="w-4 h-4" /> Trang trước
+                  </button>
+                  <span>
+                    Trang đọc thử {previewPage + 1} / {pages.length}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={previewPage === pages.length - 1}
+                    onClick={() => setPreviewPage((p) => Math.min(pages.length - 1, p + 1))}
+                    className="px-3 py-1.5 rounded-xl border border-current/20 disabled:opacity-40 flex items-center gap-1 cursor-pointer"
+                  >
+                    Trang sau <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Reviews Section */}
         <div className="mt-8 pt-6 border-t border-white/10 space-y-4">

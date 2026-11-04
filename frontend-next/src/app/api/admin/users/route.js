@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 import { query, queryOne } from '@/lib/db';
-import { formatUser, hashPassword } from '@/lib/auth';
+import { formatUser, hashPassword, requireRole } from '@/lib/auth';
 import { parseRequestData } from '@/lib/helpers';
 
 export async function GET(request) {
   try {
+    const { errorResponse } = await requireRole(request, ['admin', 'librarian']);
+    if (errorResponse) return errorResponse;
+
     const { searchParams } = new URL(request.url);
     const role = searchParams.get('role') || '';
     const keyword = searchParams.get('keyword') || '';
@@ -48,6 +51,9 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    const { errorResponse } = await requireRole(request, ['admin']);
+    if (errorResponse) return errorResponse;
+
     const { data } = await parseRequestData(request);
     const { name, email, password, role, phone, address } = data;
 
@@ -57,6 +63,16 @@ export async function POST(request) {
         { status: 422 }
       );
     }
+
+    if (String(password).length < 6) {
+      return NextResponse.json(
+        { message: 'Mật khẩu phải có ít nhất 6 ký tự.' },
+        { status: 422 }
+      );
+    }
+
+    const validRoles = ['reader', 'librarian', 'admin'];
+    const targetRole = validRoles.includes(role) ? role : 'reader';
 
     const existing = await queryOne('SELECT id FROM users WHERE email = ? LIMIT 1', [email]);
     if (existing) {
@@ -74,7 +90,7 @@ export async function POST(request) {
         name,
         email,
         hashPassword(password),
-        role || 'reader',
+        targetRole,
         phone || null,
         address || null,
         now,
