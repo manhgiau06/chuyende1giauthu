@@ -1,4 +1,6 @@
 import mysql from 'mysql2/promise';
+import path from 'path';
+import fs from 'fs';
 
 const globalForDb = globalThis;
 
@@ -14,6 +16,7 @@ const resolvedHost =
     ? '127.0.0.1'
     : process.env.DB_HOST;
 
+// MySQL connection pool
 export const pool =
   globalForDb.mysqlPoolV3 ||
   mysql.createPool({
@@ -26,37 +29,93 @@ export const pool =
     connectionLimit: 10,
     queueLimit: 0,
     decimalNumbers: true,
+    connectTimeout: 2000,
   });
 
 if (process.env.NODE_ENV !== 'production') {
   globalForDb.mysqlPoolV3 = pool;
 }
 
+// Fallback SQLite instance for environments without running MySQL (like Windows without Docker)
+let sqliteDb = null;
+let useSqliteFallback = false;
+
+function getSqliteDb() {
+  if (sqliteDb) return sqliteDb;
+
+  const sqliteModule = eval("require('node:sqlite')");
+  const { DatabaseSync } = sqliteModule;
+  const dbPath = path.resolve(process.cwd(), 'database.sqlite');
+  
+  if (!fs.existsSync(dbPath)) {
+    // If database.sqlite doesn't exist yet, run init-sqlite
+    try {
+      require(path.resolve(process.cwd(), 'scripts/init-sqlite.js'));
+    } catch (e) {
+      console.warn('Could not auto-run init-sqlite:', e.message);
+    }
+  }
+
+  sqliteDb = new DatabaseSync(dbPath);
+  
+  // Register MySQL custom functions in SQLite
+  try {
+    sqliteDb.function('now', () => new Date().toISOString().slice(0, 19).replace('T', ' '));
+    sqliteDb.function('concat', (...args) => args.join(''));
+  } catch {}
+
+  return sqliteDb;
+}
+
 let innoDbChecked = globalForDb.innoDbChecked || false;
 
-async function ensureInnoDB() {
-  if (innoDbChecked) return;
-  innoDbChecked = true;
-  globalForDb.innoDbChecked = true;
+async function checkDatabaseBackend() {
+  if (useSqliteFallback) return;
   try {
-    const dbName = process.env.DB_NAME || process.env.DB_DATABASE || 'chuyende1';
-    const [myisamTables] = await pool.query(
-      `SELECT TABLE_NAME AS tableName FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND ENGINE = 'MyISAM'`,
-      [dbName]
-    );
-    for (const row of myisamTables) {
-      if (row.tableName) {
-        await pool.query(`ALTER TABLE ${pool.escapeId(row.tableName)} ENGINE=InnoDB`);
-      }
+    // Test MySQL connection with a quick ping
+    const conn = await pool.getConnection();
+    conn.release();
+  } catch (err) {
+    if (!useSqliteFallback) {
+      console.log('>> MySQL server khong kha dung (ECONNREFUSED). Tu dong su dung co so du lieu SQLite noi bo (database.sqlite)!');
+      useSqliteFallback = true;
     }
-  } catch {
-    innoDbChecked = false;
-    globalForDb.innoDbChecked = false;
   }
 }
 
 export async function query(sql, params = []) {
-  await ensureInnoDB();
+  await checkDatabaseBackend();
+
+  if (useSqliteFallback) {
+    const sdb = getSqliteDb();
+    const cleanSql = sql.trim();
+    const isSelect = /^SELECT\b/i.test(cleanSql) || /^PRAGMA\b/i.test(cleanSql);
+
+    // Format params: replace undefined with null, convert Date to string
+    const safeParams = params.map(p => {
+      if (p === undefined) return null;
+      if (p instanceof Date) return p.toISOString().slice(0, 19).replace('T', ' ');
+      return p;
+    });
+
+    if (isSelect) {
+      const stmt = sdb.prepare(cleanSql);
+      const rows = stmt.all(...safeParams);
+      return rows;
+    } else {
+      const stmt = sdb.prepare(cleanSql);
+      const info = stmt.run(...safeParams);
+      const res = [{
+        insertId: Number(info.lastInsertRowid || 0),
+        affectedRows: Number(info.changes || 0),
+      }];
+      res.insertId = Number(info.lastInsertRowid || 0);
+      res.affectedRows = Number(info.changes || 0);
+      return res;
+    }
+  }
+
+  // MySQL query
   const [rows] = await pool.query(sql, params);
   return rows;
 }
@@ -67,7 +126,25 @@ export async function queryOne(sql, params = []) {
 }
 
 export async function withTransaction(callback) {
-  await ensureInnoDB();
+  await checkDatabaseBackend();
+
+  if (useSqliteFallback) {
+    const sdb = getSqliteDb();
+    sdb.exec('BEGIN TRANSACTION;');
+    try {
+      const tx = {
+        query: async (sql, params = []) => query(sql, params),
+        queryOne: async (sql, params = []) => queryOne(sql, params),
+      };
+      const result = await callback(tx);
+      sdb.exec('COMMIT;');
+      return result;
+    } catch (err) {
+      sdb.exec('ROLLBACK;');
+      throw err;
+    }
+  }
+
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();

@@ -522,3 +522,114 @@ body {
   animation-fill-mode: both;
 }
 
+
+
+/* ==========================================================================
+   5-STANDARD BOOKSTORE UI/UX ENHANCEMENTS (VISUAL, SEARCH, PDP, MERCH, CART)
+   ========================================================================== */
+
+/* 1. EDITORIAL TYPOGRAPHY & SOOTHING PAPER PALETTE */
+body {
+  background-color: #FAF8F5 !important;
+  color: #1F2937 !important;
+  background-image: 
+    radial-gradient(circle at 15% 15%, rgba(217, 119, 6, 0.04) 0%, transparent 45%),
+    radial-gradient(circle at 85% 85%, rgba(37, 99, 235, 0.035) 0%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(13, 148, 136, 0.025) 0%, transparent 50%) !important;
+}
+
+.font-serif-book {
+  font-family: 'Lora', 'Merriweather', 'Playfair Display', Georgia, serif;
+}
+
+.font-sans-book {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+.book-synopsis {
+  font-size: 16px;
+  line-height: 1.625;
+  color: #374151;
+}
+
+/* 2. UNIFORM ASPECT RATIO (2:3) & OBJECT-FIT CONTAIN FOR BOOK COVERS */
+.book-cover-aspect {
+  aspect-ratio: 2 / 3;
+  width: 100%;
+  position: relative;
+  background-color: #F6F3EE;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid #EAE3D9;
+}
+
+.book-cover-aspect img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 8px;
+}
+
+.group:hover .book-cover-aspect img {
+  transform: scale(1.05);
+}
+
+/* 3. MERCHANDISING BADGES (CLEAN FLAT BORDERS, NO BLURRY COLORED SHADOWS) */
+.badge-bestseller {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.badge-new {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.badge-preorder {
+  background: #fffbeb;
+  color: #d97706;
+  border: 1px solid #fde68a;
+}
+
+.badge-discount {
+  background: #fdf2f8;
+  color: #db2777;
+  border: 1px solid #fbcfe8;
+}
+
+/* 4. SLIDE-OUT MINI CART DRAWER */
+@keyframes slideDrawerIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0.7;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.mini-cart-drawer {
+  animation: slideDrawerIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.freeship-progress-fill {
+  transition: width 0.5s ease-in-out;
+}
+
+/* 5. SPOILER MASK & REVEAL */
+.spoiler-mask {
+  filter: blur(5px);
+  user-select: none;
+  transition: filter 0.3s ease;
+}
+
+.spoiler-unmasked {
+  filter: none;
+  user-select: text;
+}
