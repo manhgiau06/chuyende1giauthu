@@ -23,6 +23,8 @@ export default function BookCard({ book, onSelect, onBorrow, onAddToCart, user, 
         <img
           src={book.cover_image}
           alt={book.title}
+          loading="lazy"
+          decoding="async"
           className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-700 ease-out"
           onError={(e) => {
             e.target.src = 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?auto=format&fit=crop&w=600&q=80';

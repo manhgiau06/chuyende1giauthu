@@ -1,7 +1,7 @@
 # Các lệnh chuẩn của dự án: make up / make down / make ps / make logs / make docker-setup
 # LƯU Ý: Tất cả các dòng lệnh bên trong target bắt buộc thụt vào bằng 1 phím TAB.
 
-.PHONY: help up down ps logs docker-setup export-db
+.PHONY: help up down ps logs docker-setup export-db sync-ui
 
 .DEFAULT_GOAL := help
 
@@ -25,3 +25,6 @@ docker-setup:   ## Nạp lại cấu trúc bảng + dữ liệu mẫu từ docke
 
 export-db:      ## Xuất dữ liệu hiện tại từ MySQL ra file docker/mysql/init.sql
 	cd frontend-next && node scripts/export-db.mjs
+
+sync-ui:        ## Đồng bộ toàn bộ giao diện từ frontend sang frontend-next (UTF-8 chuẩn)
+	node scripts/sync-ui.mjs

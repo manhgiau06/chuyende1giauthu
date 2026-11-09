@@ -51,8 +51,8 @@ export default function BookDetailModal({ book, onClose, onBorrow, onAddToCart, 
   const [reserveError, setReserveError] = useState('');
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewPage, setPreviewPage] = useState(0);
-  const [readerTheme, setReaderTheme] = useState('sepia');
-  const [fontSize, setFontSize] = useState('base');
+  const [readerTheme, setReaderTheme] = useState('sepia'); // 'light' | 'sepia' | 'dark'
+  const [fontSize, setFontSize] = useState('base'); // 'sm' | 'base' | 'lg'
 
   useEffect(() => {
     if (book) {
@@ -248,6 +248,7 @@ export default function BookDetailModal({ book, onClose, onBorrow, onAddToCart, 
           return (
             <div className="mt-6 pt-5 border-t border-white/10">
               <div className={`rounded-2xl border p-5 sm:p-6 shadow-2xl transition-colors ${themeClasses}`}>
+                {/* Reader Toolbar */}
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-4 border-b border-current/15">
                   <div className="flex items-center gap-2">
                     <BookOpen className="w-4 h-4 text-indigo-500" />
@@ -260,6 +261,7 @@ export default function BookDetailModal({ book, onClose, onBorrow, onAddToCart, 
                       type="button"
                       onClick={() => setReaderTheme('light')}
                       className={`px-2 py-1 rounded-lg text-[11px] font-bold border ${readerTheme === 'light' ? 'ring-2 ring-blue-500' : 'opacity-70'}`}
+                      title="Nền sáng"
                     >
                       <Sun className="w-3.5 h-3.5 inline mr-0.5" /> Sáng
                     </button>
@@ -267,6 +269,7 @@ export default function BookDetailModal({ book, onClose, onBorrow, onAddToCart, 
                       type="button"
                       onClick={() => setReaderTheme('sepia')}
                       className={`px-2 py-1 rounded-lg text-[11px] font-bold border ${readerTheme === 'sepia' ? 'ring-2 ring-amber-600' : 'opacity-70'}`}
+                      title="Nền giấy vàng dịu mắt"
                     >
                       📜 Giấy
                     </button>
@@ -274,6 +277,7 @@ export default function BookDetailModal({ book, onClose, onBorrow, onAddToCart, 
                       type="button"
                       onClick={() => setReaderTheme('dark')}
                       className={`px-2 py-1 rounded-lg text-[11px] font-bold border ${readerTheme === 'dark' ? 'ring-2 ring-indigo-400' : 'opacity-70'}`}
+                      title="Nền tối"
                     >
                       <Moon className="w-3.5 h-3.5 inline mr-0.5" /> Tối
                     </button>
@@ -281,12 +285,14 @@ export default function BookDetailModal({ book, onClose, onBorrow, onAddToCart, 
                       type="button"
                       onClick={() => setFontSize(fontSize === 'sm' ? 'base' : fontSize === 'base' ? 'lg' : 'sm')}
                       className="px-2 py-1 rounded-lg text-[11px] font-bold border ml-1"
+                      title="Đổi cỡ chữ"
                     >
                       <Type className="w-3.5 h-3.5 inline mr-0.5" /> Cỡ chữ
                     </button>
                   </div>
                 </div>
 
+                {/* Chapter & Content */}
                 <div className="space-y-3 min-h-[210px]">
                   <h4 className="font-black text-base sm:text-lg border-l-4 border-indigo-500 pl-3">
                     {current.chapter}
@@ -298,6 +304,7 @@ export default function BookDetailModal({ book, onClose, onBorrow, onAddToCart, 
                   ))}
                 </div>
 
+                {/* Pagination Footer */}
                 <div className="flex items-center justify-between pt-4 mt-4 border-t border-current/15 text-xs font-bold">
                   <button
                     type="button"

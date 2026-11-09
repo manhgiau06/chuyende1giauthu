@@ -143,12 +143,18 @@ export async function POST(request) {
 
       const newBookId = result.insertId;
 
-      for (let i = 1; i <= borrowCopies; i++) {
-        const barcode = `BC-${newBookId}-${String(i).padStart(3, '0')}`;
+      if (borrowCopies > 0) {
+        const copyValuesSql = [];
+        const copyParams = [];
+        for (let i = 1; i <= borrowCopies; i++) {
+          const barcode = `BC-${newBookId}-${String(i).padStart(3, '0')}`;
+          copyValuesSql.push(`(?, ?, 'new', 'available', ?, ?)`);
+          copyParams.push(newBookId, barcode, now, now);
+        }
         await tx.query(
           `INSERT INTO book_copies (book_id, barcode, \`condition\`, status, created_at, updated_at)
-           VALUES (?, ?, 'new', 'available', ?, ?)`,
-          [newBookId, barcode, now, now]
+           VALUES ${copyValuesSql.join(', ')}`,
+          copyParams
         );
       }
 

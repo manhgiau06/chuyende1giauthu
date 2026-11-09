@@ -73,7 +73,7 @@ export default function BankPaymentModal({ isOpen, onClose, paymentInfo, onSucce
       });
       setMsg(res.data.message || 'Đối soát tự động VietQR thành công!');
       if (onSuccess) {
-        onSuccess(false);
+        onSuccess(false); // false = paid immediately
       }
       setTimeout(() => {
         onClose();

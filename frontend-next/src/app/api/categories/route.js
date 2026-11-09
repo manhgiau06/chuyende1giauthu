@@ -6,8 +6,10 @@ import { parseRequestData } from '@/lib/helpers';
 export async function GET() {
   try {
     const categories = await query(
-      `SELECT c.*, (SELECT COUNT(*) FROM books b WHERE b.category_id = c.id) AS books_count
+      `SELECT c.*, COUNT(b.id) AS books_count
        FROM categories c
+       LEFT JOIN books b ON b.category_id = c.id
+       GROUP BY c.id
        ORDER BY c.id ASC`
     );
     return NextResponse.json({

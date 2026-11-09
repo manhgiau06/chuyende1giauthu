@@ -7,56 +7,84 @@ export async function GET(request) {
     const { errorResponse } = await requireRole(request, ['admin']);
     if (errorResponse) return errorResponse;
 
-    const months = [];
     const now = new Date();
+    const startWindow = new Date(now.getFullYear(), now.getMonth() - 5, 1);
 
+    const [
+      borrowsByMonth,
+      ordersByMonth,
+      lateFeesByMonth,
+      totalRevenueRow,
+      totalBorrowsRow,
+      unpaidReaders,
+    ] = await Promise.all([
+      query(
+        `SELECT DATE_FORMAT(created_at, '%Y-%m') AS ym, COUNT(*) AS cnt
+         FROM borrow_tickets
+         WHERE created_at >= ?
+         GROUP BY ym`,
+        [startWindow]
+      ),
+      query(
+        `SELECT DATE_FORMAT(created_at, '%Y-%m') AS ym,
+                COUNT(*) AS cnt,
+                COALESCE(SUM(CASE WHEN order_status != 'cancelled' THEN total_amount ELSE 0 END), 0) AS revenue
+         FROM orders
+         WHERE created_at >= ?
+         GROUP BY ym`,
+        [startWindow]
+      ),
+      query(
+        `SELECT DATE_FORMAT(created_at, '%Y-%m') AS ym,
+                COALESCE(SUM(total_late_fee), 0) AS late_fee
+         FROM borrow_tickets
+         WHERE created_at >= ?
+         GROUP BY ym`,
+        [startWindow]
+      ),
+      queryOne(
+        `SELECT COALESCE(SUM(total_amount), 0) AS total FROM orders WHERE order_status != 'cancelled'`
+      ),
+      queryOne(`SELECT COUNT(*) AS cnt FROM borrow_tickets`),
+      query(
+        `SELECT u.name AS reader_name, u.email AS reader_email,
+                COUNT(bt.id) AS tickets_count,
+                COALESCE(SUM(bt.total_late_fee), 0) AS total_debt
+         FROM borrow_tickets bt
+         JOIN users u ON bt.reader_id = u.id
+         WHERE bt.total_late_fee > 0
+         GROUP BY u.id, u.name, u.email
+         ORDER BY total_debt DESC`
+      ),
+    ]);
+
+    const borrowsMap = Object.fromEntries(borrowsByMonth.map((r) => [r.ym, Number(r.cnt || 0)]));
+    const ordersMap = Object.fromEntries(
+      ordersByMonth.map((r) => [
+        r.ym,
+        { cnt: Number(r.cnt || 0), revenue: Number(r.revenue || 0) },
+      ])
+    );
+    const feesMap = Object.fromEntries(
+      lateFeesByMonth.map((r) => [r.ym, Number(r.late_fee || 0)])
+    );
+
+    const months = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const year = d.getFullYear();
-      const month = d.getMonth() + 1;
-      const label = `T${String(month).padStart(2, '0')}/${year}`;
-
-      const borrowsRow = await queryOne(
-        'SELECT COUNT(*) AS cnt FROM borrow_tickets WHERE YEAR(created_at) = ? AND MONTH(created_at) = ?',
-        [year, month]
-      );
-      const ordersRow = await queryOne(
-        'SELECT COUNT(*) AS cnt FROM orders WHERE YEAR(created_at) = ? AND MONTH(created_at) = ?',
-        [year, month]
-      );
-      const revOrderRow = await queryOne(
-        `SELECT COALESCE(SUM(total_amount), 0) AS total FROM orders
-         WHERE YEAR(created_at) = ? AND MONTH(created_at) = ? AND order_status != 'cancelled'`,
-        [year, month]
-      );
-      const revFeeRow = await queryOne(
-        `SELECT COALESCE(SUM(total_late_fee), 0) AS total FROM borrow_tickets
-         WHERE YEAR(created_at) = ? AND MONTH(created_at) = ?`,
-        [year, month]
-      );
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const ym = `${year}-${month}`;
+      const label = `T${month}/${year}`;
+      const ord = ordersMap[ym] || { cnt: 0, revenue: 0 };
 
       months.push({
         label,
-        borrows: Number(borrowsRow?.cnt || 0),
-        orders: Number(ordersRow?.cnt || 0),
-        revenue: Number(revOrderRow?.total || 0) + Number(revFeeRow?.total || 0),
+        borrows: borrowsMap[ym] || 0,
+        orders: ord.cnt,
+        revenue: ord.revenue + (feesMap[ym] || 0),
       });
     }
-
-    const totalRevenueRow = await queryOne(
-      `SELECT COALESCE(SUM(total_amount), 0) AS total FROM orders WHERE order_status != 'cancelled'`
-    );
-    const totalBorrowsRow = await queryOne(`SELECT COUNT(*) AS cnt FROM borrow_tickets`);
-    const unpaidReaders = await query(
-      `SELECT u.name AS reader_name, u.email AS reader_email,
-              COUNT(bt.id) AS tickets_count,
-              COALESCE(SUM(bt.total_late_fee), 0) AS total_debt
-       FROM borrow_tickets bt
-       JOIN users u ON bt.reader_id = u.id
-       WHERE bt.total_late_fee > 0
-       GROUP BY u.id, u.name, u.email
-       ORDER BY total_debt DESC`
-    );
 
     return NextResponse.json({
       monthly_stats: months,

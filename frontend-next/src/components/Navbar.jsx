@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
-import { BookOpen, ShoppingBag, BookmarkCheck, User, LogOut, Shield, Truck, FolderPlus, Bell, Heart, QrCode, BookPlus, Send, ChevronDown, PlusCircle } from 'lucide-react';
+import { BookOpen, ShoppingBag, BookmarkCheck, User, LogOut, Shield, Truck, FolderPlus, Bell, Heart, QrCode, BookPlus, Send, ChevronDown, PlusCircle, Search } from 'lucide-react';
 import { getImageUrl } from '../api';
 
 export default function Navbar({ 
@@ -20,7 +20,8 @@ export default function Navbar({
   onOpenSendNotification,
   onOpenWishlist,
   onOpenNotifications,
-  onOpenDigitalCard
+  onOpenDigitalCard,
+  onOpenFindBook
 }) {
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
   const quickActionsRef = useRef(null);
@@ -248,6 +249,18 @@ export default function Navbar({
           {/* Reader Action Pills (Only for Readers) */}
           {user && user.role === 'reader' && (
             <div className="hidden xl:flex items-center gap-1.5">
+              {/* Ask Librarian to Find Book */}
+              {onOpenFindBook && (
+                <button
+                  onClick={onOpenFindBook}
+                  className="h-9 px-3 bg-amber-50 hover:bg-amber-100/80 border border-amber-200/80 rounded-xl transition-all flex items-center gap-1.5 text-xs font-bold text-amber-800 whitespace-nowrap shadow-xs cursor-pointer"
+                  title="Nhờ Thủ thư tìm sách giúp và báo khi có sách"
+                >
+                  <Search className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Nhờ Tìm Sách</span>
+                </button>
+              )}
+
               {/* Digital Card */}
               <button
                 onClick={onOpenDigitalCard}

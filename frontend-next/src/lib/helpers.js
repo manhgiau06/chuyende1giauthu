@@ -56,9 +56,13 @@ export async function hydrateBooks(books) {
   if (!books || books.length === 0) return [];
   const bookIds = books.map((b) => b.id);
   const placeholders = bookIds.map(() => '?').join(',');
+  const categoryIds = [...new Set(books.map((b) => b.category_id).filter(Boolean))];
+  const catPlaceholders = categoryIds.map(() => '?').join(',');
 
   const [categories, inventories, copies] = await Promise.all([
-    query(`SELECT * FROM categories`),
+    categoryIds.length > 0
+      ? query(`SELECT * FROM categories WHERE id IN (${catPlaceholders})`, categoryIds)
+      : Promise.resolve([]),
     query(`SELECT * FROM book_inventories WHERE book_id IN (${placeholders})`, bookIds),
     query(`SELECT * FROM book_copies WHERE book_id IN (${placeholders})`, bookIds),
   ]);

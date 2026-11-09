@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Search, BookOpen, Sparkles, Filter, Bookmark, ShoppingBag, Truck, CheckCircle2, ShieldCheck, HeartHandshake, Plus, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import api from './api';
 import Navbar from './components/Navbar';
@@ -17,9 +17,11 @@ import WishlistModal from './components/WishlistModal';
 import NotificationLogModal from './components/NotificationLogModal';
 import SendNotificationModal from './components/SendNotificationModal';
 import DigitalLibraryCardModal from './components/DigitalLibraryCardModal';
-import LibrarianView from './components/LibrarianView';
-import AdminView from './components/AdminView';
+import BookFindRequestModal from './components/BookFindRequestModal';
 import AIChatWidget from './components/AIChatWidget';
+
+const LibrarianView = lazy(() => import('./components/LibrarianView'));
+const AdminView = lazy(() => import('./components/AdminView'));
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -29,6 +31,7 @@ export default function App() {
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [debouncedKeyword, setDebouncedKeyword] = useState('');
   const [availabilityFilter, setAvailabilityFilter] = useState('all'); // 'all' | 'borrowable' | 'salable'
   const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'price_asc' | 'price_desc' | 'year_desc' | 'title_asc'
   const [currentPage, setCurrentPage] = useState(1);
@@ -49,6 +52,7 @@ export default function App() {
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [isNotificationLogOpen, setIsNotificationLogOpen] = useState(false);
   const [isSendNotificationOpen, setIsSendNotificationOpen] = useState(false);
+  const [isFindBookOpen, setIsFindBookOpen] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
   const [paymentInfo, setPaymentInfo] = useState(null);
 
@@ -147,7 +151,7 @@ export default function App() {
         per_page: 8,
         sort: sortBy,
       };
-      if (searchKeyword) params.keyword = searchKeyword;
+      if (debouncedKeyword) params.keyword = debouncedKeyword;
       if (selectedCategory) params.category_id = selectedCategory;
       if (availabilityFilter !== 'all') params.availability = availabilityFilter;
 
@@ -183,14 +187,21 @@ export default function App() {
   };
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedKeyword(searchKeyword.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchKeyword]);
+
+  useEffect(() => {
     setCurrentPage(1);
-  }, [searchKeyword, selectedCategory, availabilityFilter, sortBy]);
+  }, [debouncedKeyword, selectedCategory, availabilityFilter, sortBy]);
 
   useEffect(() => {
     if (activeTab === 'catalog') {
       fetchBooks(currentPage);
     }
-  }, [searchKeyword, selectedCategory, availabilityFilter, sortBy, currentPage, activeTab]);
+  }, [debouncedKeyword, selectedCategory, availabilityFilter, sortBy, currentPage, activeTab]);
 
   const handleLogout = async () => {
     try {
@@ -300,6 +311,7 @@ export default function App() {
             setNotificationCount(0);
           }}
           onOpenDigitalCard={() => setIsDigitalCardOpen(true)}
+          onOpenFindBook={() => setIsFindBookOpen(true)}
         />
 
         {/* Toast Notification */}
@@ -311,9 +323,13 @@ export default function App() {
 
         {/* Dynamic Views */}
         {activeTab === 'librarian' && user && (user.role === 'librarian' || user.role === 'admin') ? (
-          <LibrarianView user={user} />
+          <Suspense fallback={<div className="text-center py-20 text-slate-400">Đang tải phân hệ Thủ thư...</div>}>
+            <LibrarianView user={user} />
+          </Suspense>
         ) : activeTab === 'admin' && user && user.role === 'admin' ? (
-          <AdminView user={user} />
+          <Suspense fallback={<div className="text-center py-20 text-slate-400">Đang tải phân hệ Quản trị...</div>}>
+            <AdminView user={user} />
+          </Suspense>
         ) : (
           /* CATALOG VIEW */
           <main className="max-w-7xl mx-auto px-4 pb-16 space-y-8">
@@ -486,6 +502,15 @@ export default function App() {
                   <span className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-xl font-extrabold">
                     Hiển thị {bookList.length} / {totalBooks} đầu sách
                   </span>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsFindBookOpen(true)}
+                    className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-extrabold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                    title="Không tìm thấy sách bạn cần? Nhờ Thủ thư tìm giúp và báo khi có sách!"
+                  >
+                    <Search className="w-3.5 h-3.5" /> Nhờ Thủ Thư Tìm Sách
+                  </button>
                 </div>
               </div>
             </div>
@@ -494,10 +519,22 @@ export default function App() {
             {loading ? (
               <div className="text-center py-20 text-slate-400">Đang tải dữ liệu đầu sách từ hệ thống...</div>
             ) : bookList.length === 0 ? (
-              <div className="text-center py-20 glass-panel">
-                <BookOpen className="w-12 h-12 text-slate-500 mx-auto mb-3" />
-                <h3 className="text-lg font-bold text-slate-800">Không tìm thấy đầu sách nào</h3>
-                <p className="text-xs text-slate-500">Thử từ khóa hoặc chọn bộ lọc khác</p>
+              <div className="text-center py-20 glass-panel space-y-4">
+                <BookOpen className="w-12 h-12 text-slate-500 mx-auto" />
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800">Không tìm thấy đầu sách nào</h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Bạn chưa tìm thấy sách mình cần trong kho hiện tại? Hãy gửi yêu cầu để Thủ thư tìm giúp và báo ngay cho bạn khi có sách!
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsFindBookOpen(true)}
+                  className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-extrabold rounded-2xl shadow-md inline-flex items-center gap-2 cursor-pointer"
+                >
+                  <Search className="w-4 h-4" />
+                  <span>Nhờ Thủ Thư Tìm Cuốn "{searchKeyword || 'Sách Này'}" Giúp Tôi</span>
+                </button>
               </div>
             ) : (
               <>
@@ -681,6 +718,15 @@ export default function App() {
         isOpen={isDigitalCardOpen}
         onClose={() => setIsDigitalCardOpen(false)}
         user={user}
+      />
+
+      <BookFindRequestModal
+        isOpen={isFindBookOpen}
+        onClose={() => setIsFindBookOpen(false)}
+        user={user}
+        initialKeyword={searchKeyword}
+        onSelectBook={setSelectedBook}
+        onSuccess={(message) => showToast(message)}
       />
 
       <AIChatWidget onSelectBook={setSelectedBook} />

@@ -11,6 +11,26 @@ export default function BookCopiesModal({ isOpen, onClose, bookId }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [copiedBarcode, setCopiedBarcode] = useState('');
+  const [maintainingId, setMaintainingId] = useState(null);
+
+  const handleQuickMaintenance = async (copyId, action = 'instant_recover') => {
+    setMaintainingId(copyId);
+    setError('');
+    try {
+      await api.post('/book-copies/maintenance', {
+        action,
+        book_copy_id: copyId,
+        action_type: 'recover_cover',
+        cover_type: 'plastic_glossy',
+        condition_after: 'new',
+      });
+      await fetchBookDetail();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Không thể cập nhật trạng thái bao bìa sách!');
+    } finally {
+      setMaintainingId(null);
+    }
+  };
 
   useEffect(() => {
     if (isOpen && bookId) {
@@ -235,6 +255,10 @@ export default function BookCopiesModal({ isOpen, onClose, bookId }) {
                                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
                                   ● Đang được mượn
                                 </span>
+                              ) : copy.status === 'maintenance' ? (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
+                                  🔧 Đang bao bìa / bảo quản
+                                </span>
                               ) : copy.status === 'lost' ? (
                                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
                                   ● Bị mất
@@ -247,12 +271,47 @@ export default function BookCopiesModal({ isOpen, onClose, bookId }) {
                             </td>
 
                             <td className="p-3">
-                              <span className="capitalize text-slate-600 font-medium">
-                                {copy.condition === 'good' ? 'Mới / Tốt' : copy.condition === 'fair' ? 'Bình thường' : copy.condition || 'Tốt'}
-                              </span>
+                              {copy.condition === 'new' ? (
+                                <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                  ✨ Đã bao bìa mới
+                                </span>
+                              ) : copy.condition === 'fair' ? (
+                                <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                  ⚠️ Bìa cũ - Cần bao lại
+                                </span>
+                              ) : (
+                                <span className="text-slate-600 font-medium">
+                                  📗 Bìa tốt (Nguyên bản)
+                                </span>
+                              )}
                             </td>
 
-                            <td className="p-3 text-right">
+                            <td className="p-3 text-right whitespace-nowrap space-x-1.5">
+                              {copy.status !== 'borrowed' && (
+                                copy.status === 'maintenance' ? (
+                                  <button
+                                    type="button"
+                                    disabled={maintainingId === copy.id}
+                                    onClick={() => handleQuickMaintenance(copy.id, 'complete_maintenance')}
+                                    className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-all inline-flex items-center gap-1 cursor-pointer"
+                                    title="Hoàn tất bao bìa và đưa sách lên kệ"
+                                  >
+                                    <ShieldCheck className="w-3.5 h-3.5" />
+                                    <span>Hoàn tất bao bìa</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    disabled={maintainingId === copy.id}
+                                    onClick={() => handleQuickMaintenance(copy.id, 'instant_recover')}
+                                    className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-all inline-flex items-center gap-1 cursor-pointer"
+                                    title="Bao bìa kiếng mới cho bản sao này"
+                                  >
+                                    <ShieldCheck className="w-3.5 h-3.5" />
+                                    <span>Bao bìa lại</span>
+                                  </button>
+                                )
+                              )}
                               <button
                                 onClick={() => handleCopyBarcode(copy.barcode)}
                                 className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all inline-flex items-center gap-1 cursor-pointer ${

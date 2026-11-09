@@ -52,6 +52,13 @@ export default function NotificationLogModal({ isOpen, onClose }) {
           color: 'bg-purple-100 text-purple-700 border-purple-200',
           iconColor: 'text-purple-600 bg-purple-50',
         };
+      case 'book_found':
+        return {
+          icon: Sparkles,
+          label: '🎉 Thủ Thư Báo Đã Có Sách',
+          color: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+          iconColor: 'text-emerald-600 bg-emerald-50',
+        };
       case 'event':
         return {
           icon: Sparkles,

@@ -66,6 +66,7 @@ export default function AIChatWidget({ onSelectBook }) {
     <div className="fixed bottom-5 right-5 z-50">
       {isOpen ? (
         <div className="w-[350px] sm:w-[390px] bg-white rounded-3xl shadow-2xl border border-blue-200 overflow-hidden flex flex-col max-h-[560px]">
+          {/* Header */}
           <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-500 p-4 text-white flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="p-2 bg-white/20 rounded-2xl backdrop-blur-sm">
@@ -87,6 +88,7 @@ export default function AIChatWidget({ onSelectBook }) {
             </button>
           </div>
 
+          {/* Messages */}
           <div className="flex-1 p-3.5 overflow-y-auto space-y-3 bg-slate-50 max-h-[360px]">
             {messages.map((m, idx) => (
               <div
@@ -103,6 +105,7 @@ export default function AIChatWidget({ onSelectBook }) {
                   {m.text.replace(/\*\*/g, '')}
                 </div>
 
+                {/* Suggested Books Cards */}
                 {m.books && m.books.length > 0 && (
                   <div className="mt-2 w-full space-y-1.5">
                     {m.books.map((b) => (
@@ -155,6 +158,7 @@ export default function AIChatWidget({ onSelectBook }) {
             <div ref={bottomRef} />
           </div>
 
+          {/* Quick Prompts */}
           <div className="px-3 py-2 bg-slate-100/80 border-t border-slate-200 flex gap-1.5 overflow-x-auto no-scrollbar">
             {QUICK_PROMPTS.map((qp, i) => (
               <button
@@ -168,6 +172,7 @@ export default function AIChatWidget({ onSelectBook }) {
             ))}
           </div>
 
+          {/* Input Form */}
           <form
             onSubmit={(e) => {
               e.preventDefault();

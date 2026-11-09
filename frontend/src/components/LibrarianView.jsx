@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Plus, BookOpen, CheckCircle, RotateCcw, Truck, Upload, AlertCircle, Trash2, 
   Printer, Search, QrCode, Camera, Clock, Bell, CreditCard, CheckCircle2, 
-  XCircle, Building2, Send, Filter, Sparkles, Layers, ArrowUpRight, Eye, Pencil, Barcode, Package
+  XCircle, Building2, Send, Filter, Sparkles, Layers, ArrowUpRight, Eye, Pencil, Barcode, Package, ShieldCheck
 } from 'lucide-react';
 import api from '../api';
 import PrintReceiptModal from './PrintReceiptModal';
@@ -12,9 +12,11 @@ import AddBookModal from './AddBookModal';
 import EditBookModal from './EditBookModal';
 import BookCopiesModal from './BookCopiesModal';
 import SendNotificationModal from './SendNotificationModal';
+import BookMaintenancePanel from './BookMaintenancePanel';
+import LibrarianFindRequestsPanel from './LibrarianFindRequestsPanel';
 
 export default function LibrarianView({ user }) {
-  const [activeTab, setActiveTab] = useState('books'); // 'books', 'borrows', 'orders', 'reservations', 'payments'
+  const [activeTab, setActiveTab] = useState('books'); // 'books', 'borrows', 'orders', 'reservations', 'payments', 'maintenance', 'find_requests'
   const [books, setBooks] = useState([]);
   const [categories, setCategories] = useState([]);
   const [tickets, setTickets] = useState([]);
@@ -22,6 +24,7 @@ export default function LibrarianView({ user }) {
   const [reservations, setReservations] = useState([]);
   const [payments, setPayments] = useState([]);
   const [pendingPaymentsCount, setPendingPaymentsCount] = useState(0);
+  const [pendingFindRequestsCount, setPendingFindRequestsCount] = useState(0);
   const [paymentFilter, setPaymentFilter] = useState('all');
   const [isBankConfigOpen, setIsBankConfigOpen] = useState(false);
   const [currentBankConfig, setCurrentBankConfig] = useState(null);
@@ -87,6 +90,9 @@ export default function LibrarianView({ user }) {
       setReservations(resR.data.reservations || []);
       fetchPayments();
       fetchBankConfig();
+      api.get('/book-find-requests').then((resF) => {
+        setPendingFindRequestsCount(resF.data?.pending_count || 0);
+      }).catch(() => {});
     } catch (err) {
       console.error(err);
     } finally {
@@ -390,6 +396,35 @@ export default function LibrarianView({ user }) {
               {pendingPaymentsCount > 0 && (
                 <span className="px-1.5 py-0.2 bg-rose-500 text-white text-[10px] font-black rounded-full animate-pulse">
                   {pendingPaymentsCount}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab('maintenance')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'maintenance'
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30'
+                  : 'text-white/80 hover:text-white hover:bg-white/15'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-cyan-300" />
+              <span>Bảo Quản & Bao Bìa</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('find_requests')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'find_requests'
+                  ? 'bg-amber-600 text-white shadow-md shadow-amber-500/30'
+                  : 'text-white/80 hover:text-white hover:bg-white/15'
+              }`}
+            >
+              <Search className="w-3.5 h-3.5 text-amber-300" />
+              <span>Tìm Sách Giúp Khách</span>
+              {pendingFindRequestsCount > 0 && (
+                <span className="px-1.5 py-0.2 bg-rose-500 text-white text-[10px] font-black rounded-full animate-pulse">
+                  {pendingFindRequestsCount}
                 </span>
               )}
             </button>
@@ -1319,6 +1354,23 @@ export default function LibrarianView({ user }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 6: BẢO QUẢN & BAO BÌA SÁCH */}
+      {/* ========================================================================= */}
+      {activeTab === 'maintenance' && (
+        <BookMaintenancePanel onDataChanged={fetchData} />
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 7: TÌM SÁCH GIÚP KHÁCH & THÔNG BÁO KHI CÓ SÁCH */}
+      {/* ========================================================================= */}
+      {activeTab === 'find_requests' && (
+        <LibrarianFindRequestsPanel
+          books={books}
+          onPendingCountChange={setPendingFindRequestsCount}
+        />
       )}
 
       {/* Camera Live Scanner Modal */}

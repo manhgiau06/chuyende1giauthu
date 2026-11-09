@@ -1,19 +1,30 @@
-# Caddy Reverse Proxy cho Domain HTTPS (chuẩn Azure / Production)
-# Tự động cấp phát và gia hạn chứng chỉ SSL Let's Encrypt / ZeroSSL miễn phí
+# Caddy Reverse Proxy cho cả Localhost (:80), IP trực tiếp và Domain HTTPS (Production)
+# Tự động cấp phát và gia hạn chứng chỉ SSL Let's Encrypt / ZeroSSL miễn phí cho domain
 #   /api/*     -> Backend Next.js :8000
-#   /storage/* -> Thư mục ảnh Uploads của Backend :8000
+#   /storage/* -> Thư mục ảnh Uploads của Backend :8000 (kèm Cache-Control)
 #   /*         -> Frontend React :5173
 
-giauthu.duckdns.org {
+(app_routes) {
+    encode zstd gzip
+
     handle /api/* {
         reverse_proxy backend:8000
     }
 
     handle /storage/* {
+        header Cache-Control "public, max-age=604800, immutable"
         reverse_proxy backend:8000
     }
 
     handle {
         reverse_proxy frontend:5173
     }
+}
+
+:80 {
+    import app_routes
+}
+
+giauthu.duckdns.org {
+    import app_routes
 }

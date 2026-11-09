@@ -6,6 +6,7 @@ name: chuyende1            # tên dự án cố định: hộp sẽ tên chuyend
 services:
   db:
     image: mysql:8.4
+    command: --innodb-buffer-pool-size=128M --max-connections=50 --performance-schema=OFF
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MYSQL_DATABASE: ${DB_NAME}
